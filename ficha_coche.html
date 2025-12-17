@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ficha de Coche</title>
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Google Fonts: Poppins -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <!-- Google Icons: Material Symbols Outlined -->
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" />
+
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            background-color: #f3f4f6;
+        }
+        /* Ajuste fino para los iconos de Material Design */
+        .material-symbols-outlined {
+            font-variation-settings:
+            'FILL' 0,
+            'wght' 300,
+            'GRAD' 0,
+            'opsz' 20;
+            font-size: 20px; /* Ligeramente más grandes para coincidir mejor */
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body class="flex justify-center items-center min-h-screen p-4">
+
+    <!-- Contenedor Principal de la Ficha -->
+    <!-- Se mantiene el ancho máximo y los bordes redondeados -->
+    <div class="bg-white w-full max-w-[400px] rounded-lg shadow-lg overflow-hidden border border-gray-200">
+        
+        <!-- PARTE SUPERIOR: Imagen Completa -->
+        <!-- Ahora sin elementos superpuestos, la imagen debe incluir el coche, logos y la franja de "1200 coches" -->
+        <div class="w-full">
+            <img src="https://placehold.co/400x260/EEE/31343C?text=Imagen+Completa+(Coche+%2B+Logos+%2B+Banner)" alt="Toyota C-HR" class="w-full h-auto object-cover block">
+        </div>
+
+        <!-- PARTE INFERIOR: Información -->
+        <!-- Ajusté el padding inferior para dar más aire a los precios -->
+        <div class="pl-5 pr-5 pt-2 pb-4">
+            
+            <!-- Cabecera: Nombre y Cuota -->
+            <div class="flex justify-between items-start mb-1 relative">
+                <div class="flex-1 pr-2 pt-1">
+                    <h2 class="text-[#0f172a] font-bold text-2xl leading-none mb-1">Toyota C-HR</h2>
+                    <p class="text-gray-500 text-sm font-normal">1.8 125H Advance</p>
+                </div>
+                
+                <!-- Etiqueta de Cuota -->
+                <!-- Posicionamiento absoluto relativo al padding derecho para asegurar que toque el borde -->
+                <div class="text-right flex flex-col items-end">
+                    <p class="text-[#2b5ba9] text-sm font-medium mb-1">Cuota desde</p>
+                    <!-- Truco de margen negativo para pegar al borde derecho ignorando el padding del padre -->
+                    <div class="bg-[#2b5ba9] text-white py-1.5 pl-5 pr-5 rounded-l-full flex items-baseline shadow-sm" style="margin-right: -20px;">
+                        <span class="font-bold text-2xl mr-1">264 €</span>
+                        <span class="text-xs font-light relative -top-1">mes</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Divisor Fino -->
+            <hr class="border-gray-200 mb-2 mt-1">
+
+            <!-- Iconos y Características -->
+            <div class="grid grid-cols-4 gap-2 text-center mb-2 text-[#555]">
+                <!-- Año -->
+                <div class="flex flex-col items-center justify-center gap-1">
+                    <span class="material-symbols-outlined text-[#2b5ba9]">calendar_today</span>
+                    <span class="text-gray-500 text-[13px] font-medium">2020</span>
+                </div>
+                
+                <!-- Kilómetros -->
+                <div class="flex flex-col items-center justify-center gap-1">
+                    <span class="material-symbols-outlined text-[#2b5ba9]">speed</span>
+                    <span class="text-gray-500 text-[13px] font-medium whitespace-nowrap">67.431 km</span>
+                </div>
+
+                <!-- Transmisión -->
+                <div class="flex flex-col items-center justify-center gap-1">
+                    <span class="material-symbols-outlined text-[#2b5ba9]">account_tree</span>
+                    <span class="text-gray-500 text-[13px] font-medium">Automático</span>
+                </div>
+
+                <!-- Combustible -->
+                <div class="flex flex-col items-center justify-center gap-1">
+                    <span class="material-symbols-outlined text-emerald-500">eco</span>
+                    <span class="text-gray-500 text-[13px] font-medium">Híbrido</span>
+                </div>
+            </div>
+
+            <!-- Divisor Fino -->
+            <hr class="border-gray-200 mb-3">
+
+            <!-- Precios -->
+            <div class="flex justify-between items-end px-1">
+                <!-- Precio Contado -->
+                <div class="text-left">
+                    <p class="text-gray-400 text-[13px] mb-0 leading-none font-light">Precio Contado</p>
+                    <span class="text-[#333] text-[26px] font-normal tracking-tight leading-tight">18.985 €</span>
+                </div>
+
+                <!-- Precio Financiado -->
+                <div class="text-right">
+                    <p class="text-gray-400 text-[13px] mb-0 leading-none font-light">Precio Financiado</p>
+                    <span class="text-[#2b5ba9] text-[26px] font-bold tracking-tight leading-tight">18.985 €</span>
+                </div>
+            </div>
+
+        </div>
+    </div>
+
+</body>
+</html>

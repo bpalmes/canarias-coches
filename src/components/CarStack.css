@@ -1,0 +1,23 @@
+.stack-container {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  perspective: 1200px;
+}
+
+.card-wrapper {
+  position: absolute;
+  width: 100%;
+  height: 100%;
+}
+
+.card-content {
+  width: 100%;
+  height: 100%;
+  border-radius: 1.5rem; /* rounded-3xl */
+  cursor: grab;
+  position: relative;
+}

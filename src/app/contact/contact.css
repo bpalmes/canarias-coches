@@ -1,0 +1,52 @@
+
+.contact-form-input {
+    border: none;
+    border-bottom: 1px solid #ccc;
+    border-radius: 0;
+    padding-left: 0;
+    padding-right: 0;
+    background-color: transparent;
+}
+
+.contact-form-input:focus {
+    outline: none;
+    box-shadow: none;
+    border-bottom: 2px solid #3b82f6; /* blue-500 */
+}
+
+.contact-select-trigger {
+    border: none;
+    border-bottom: 1px solid #ccc;
+    border-radius: 0;
+    padding-left: 0;
+    padding-right: 0;
+    background-color: transparent;
+}
+
+.contact-select-trigger:focus {
+    outline: none;
+    box-shadow: none;
+}
+
+.contact-textarea {
+     border: none;
+    border-bottom: 1px solid #ccc;
+    border-radius: 0;
+    padding-left: 0;
+    padding-right: 0;
+    background-color: transparent;
+    min-height: 80px;
+}
+
+.contact-textarea:focus {
+    outline: none;
+    box-shadow: none;
+    border-bottom: 2px solid #3b82f6; /* blue-500 */
+}
+
+.file-upload-label {
+    display: block;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 8px;
+    cursor: pointer;
+}

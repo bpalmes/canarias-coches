@@ -1,0 +1,178 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
+}
+
+model User {
+  id        Int      @id @default(autoincrement())
+  email     String   @unique
+  password  String
+  role      Role     @default(USER)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model Car {
+  id                      Int       @id @default(autoincrement())
+  sku                     String    @unique // From <id>
+  name                    String    // From <title>
+  version                 String?   // From <version>
+  vin                     String?   @unique // From <vin>
+  
+  // Pricing
+  regularPrice            Float     // From <price>
+  financedPrice           Float?    // From <financed_price>
+  monthlyFinancingFee     Float?    // From <monthly_financing_fee>
+  vatDeductible           Boolean   @default(false) // From <vat>
+
+  // Core Details
+  make                    String?   // From <make>
+  model                   String?   // From <model>
+  bodytype                String?   // From <bodytype>
+  year                    Int?      // From <year>
+  month                   Int?      // From <month>
+  kms                     Int?      // From <kms>
+  fuel                    String?   // From <fuel>
+  power                   Int?      // From <power> (CV)
+  transmission            String?   // From <transmission>
+  color                   String?   // From <color>
+  doors                   Int?      // From <doors>
+  seats                   Int?      // From <seats>
+  engineSize              Int?      // From <engine_size> (cc)
+  gears                   Int?      // From <gears>
+
+  // Location
+  store                   String?   // From <store>
+  city                    String?   // From <city>
+  address                 String?   // From <address>
+
+  // Technical & Status
+  numberplate             String?   // From <numberplate>
+  guarantee               String?   // From <guarantee>
+  environmentalBadge      String?   // From <environmental_badge>
+  crashed                 Boolean   @default(false) // From <crashed>
+  isSold                  Boolean   @default(false)
+
+  // Descriptions
+  description             String?   @db.Text // From <content>
+  equipment               String?   @db.Text // From <equipment>
+  
+  // Source tracking
+  source                  String    @default("feed") // "feed" or "manual"
+  
+  // Foto especial para ofertas
+  offerImageUrl           String?   // URL de la foto especial que aparece solo en ofertas
+  
+  images                  Image[]
+  offers                  Offer[]   @relation("CarToOffer")
+  leads                   Lead[]
+
+  createdAt               DateTime  @default(now())
+  updatedAt               DateTime  @updatedAt
+}
+
+model Offer {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  slug        String   @unique
+  cars        Car[]    @relation("CarToOffer")
+  
+  // Banner promocional
+  hasPromotionalBanner Boolean   @default(false)
+  bannerImageUrl       String?   // URL de la imagen/video/gif del banner
+  bannerTitle          String?   // Texto grande del banner
+  bannerSubtitle       String?   // Texto pequeño del banner
+  bannerSize           String?   @default("medium") // small, medium, large
+  
+  // Títulos personalizados para la oferta (Figma style)
+  offerTitle           String?   // Título principal (Poppins, grande)
+  offerSubtitle        String?   // Subtítulo (Lato, pequeño)
+  
+  // Imágenes de la oferta
+  innerImageUrl        String?   // Imagen interior grande (relación aspecto Figma)
+  coverImageUrl        String?   // Imagen exterior cuadrada (para home)
+  
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Image {
+  id        Int      @id @default(autoincrement())
+  url       String
+  car       Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  carId     Int
+  isPrimary Boolean  @default(false)
+  source    String   @default("feed") // "feed" or "manual"
+}
+
+model Lead {
+  id          String   @id @default(cuid())
+  firstName   String
+  lastName    String
+  email       String
+  phone       String?
+  message     String?
+  
+  // Información del coche
+  carId       Int?     // Relacionado con Car.id (Int)
+  carMake     String?
+  carModel    String?
+  carYear     Int?
+  carLicensePlate String?
+  carStockNumber  String?
+  
+  // Metadatos del lead
+  source      String?  // website, phone, etc.
+  medium      String?  // car_page, contact_form, etc.
+  campaign    String?  // car_interest, general_contact, etc.
+  sheetName   String?  // Nombre de la hoja de Google Sheets de origen
+  leadType    String   @default("sales") // sales (ventas) o appraisal (tasaciones)
+  
+  // Identificador único de Facebook/Instagram
+  facebookLeadId String? @unique // ID único del lead de Facebook (l:780430904885877)
+  
+  // Estado de envío a Walcu
+  walcuLeadId String?  // ID del lead en Walcu CRM
+  walcuStatus String   @default("pending") // pending, sent, failed
+  walcuError  String?  // Mensaje de error si falló
+  
+  // Timestamps
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  
+  // Relaciones
+  car         Car?     @relation(fields: [carId], references: [id])
+  
+  @@index([email])
+  @@index([walcuStatus])
+  @@index([createdAt])
+}
+
+model GalleryImage {
+  id          Int      @id @default(autoincrement())
+  title       String
+  description String?
+  imageUrl    String
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  @@map("gallery_images")
+}

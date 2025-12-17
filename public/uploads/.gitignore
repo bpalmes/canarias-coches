@@ -1,0 +1,7 @@
+# Ignorar archivos subidos por usuarios
+*
+# Pero mantener la estructura de directorios
+!.gitignore
+
+
+

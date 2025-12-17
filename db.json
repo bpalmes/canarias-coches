@@ -1,0 +1,11 @@
+{
+  "users": [],
+  "cars": [
+    { "id": 1, "name": "Toyota Camry", "brand": "Toyota", "model": "Camry", "year": 2023, "price": 25000 },
+    { "id": 2, "name": "Honda Civic", "brand": "Honda", "model": "Civic", "year": 2022, "price": 22000 },
+    { "id": 3, "name": "Ford Mustang", "brand": "Ford", "model": "Mustang", "year": 2024, "price": 40000 },
+    { "id": 4, "name": "Chevrolet Silverado", "brand": "Chevrolet", "model": "Silverado", "year": 2023, "price": 35000 },
+    { "id": 5, "name": "Tesla Model 3", "brand": "Tesla", "model": "Model 3", "year": 2023, "price": 42000 }
+  ],
+  "offers": []
+} 

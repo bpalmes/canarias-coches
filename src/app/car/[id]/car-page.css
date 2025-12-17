@@ -1,0 +1,223 @@
+/* Estilos Generales y Contenedor Principal */
+.container {
+  max-width: 1200px;
+  margin: 2rem auto;
+  font-family: Arial, sans-serif;
+  color: #333;
+  background-color: #fff;
+  padding: 2rem;
+  border-radius: 8px;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+}
+
+.main-content {
+  display: flex;
+  gap: 2rem;
+  border-bottom: 1px solid #e0e0e0;
+  padding-bottom: 2rem;
+}
+
+/* Columna Izquierda: Galería de Imágenes */
+.image-gallery {
+  flex: 1;
+  max-width: 58%; /* Proporción similar a la captura */
+}
+
+.main-image-container {
+  position: relative;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.main-image {
+  width: 100%;
+  display: block;
+}
+
+.image-counter {
+  position: absolute;
+  bottom: 10px;
+  right: 10px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 0.8rem;
+}
+
+.view-interior-button {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    background-color: rgba(255, 255, 255, 0.9);
+    border: 1px solid #ccc;
+    padding: 10px 20px;
+    border-radius: 20px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+.thumbnail-strip {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-top: 1rem;
+}
+
+.thumbnail {
+  width: 16%; /* 5 miniaturas + espacio para flechas */
+  border: 2px solid transparent;
+  border-radius: 4px;
+  cursor: pointer;
+  opacity: 0.7;
+}
+
+.thumbnail.active {
+  border-color: #007bff; /* Color de borde para la miniatura activa */
+  opacity: 1;
+}
+
+.nav-arrow {
+  border: none;
+  background: none;
+  font-size: 2rem;
+  color: #888;
+  cursor: pointer;
+}
+
+/* Columna Derecha: Información del Vehículo */
+.vehicle-info {
+  flex: 1;
+  max-width: 42%;
+}
+
+.header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.header h1 {
+  font-size: 1.8rem;
+  margin: 0;
+}
+
+.badge {
+  background-color: #f0f0f0;
+  padding: 5px 10px;
+  border-radius: 4px;
+  font-size: 0.9rem;
+  font-weight: bold;
+}
+
+.subtitle, .specs {
+  color: #555;
+  margin: 0.5rem 0;
+}
+
+.pricing {
+  display: flex;
+  gap: 1rem;
+  margin: 1.5rem 0;
+}
+
+.price-option {
+  flex: 1;
+  padding: 1rem;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+}
+
+.price-option.financed {
+  border-color: #4caf50;
+  background-color: #f0fff0;
+}
+
+.price-option span {
+  font-size: 0.9rem;
+  color: #777;
+}
+
+.price-option p {
+  font-size: 1.5rem;
+  font-weight: bold;
+  margin: 0.25rem 0 0;
+}
+
+.finance-link {
+  color: #4caf50;
+  text-decoration: none;
+  font-weight: bold;
+}
+
+.discount-info {
+  font-size: 0.8rem;
+  color: #777;
+  margin-top: 0.5rem;
+}
+
+.features {
+  margin: 1.5rem 0;
+  background-color: #f9f9f9;
+  padding: 1rem;
+  border-radius: 8px;
+}
+
+.features ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.features li {
+  margin-bottom: 0.5rem;
+  color: #333;
+}
+
+.delivery-info {
+  text-align: center;
+  font-size: 0.9rem;
+  color: #555;
+  margin: 1.5rem 0;
+}
+
+.interest-button {
+  width: 100%;
+  background-color: #4caf50;
+  color: white;
+  border: none;
+  padding: 1rem;
+  font-size: 1.1rem;
+  font-weight: bold;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+/* Sección Inferior: Datos del Vehículo */
+.vehicle-details {
+  padding-top: 2rem;
+}
+
+.vehicle-details h2 {
+  font-size: 1.2rem;
+  margin-bottom: 1.5rem;
+}
+
+.details-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 1.5rem;
+}
+
+.detail-label {
+  color: #777;
+  font-size: 0.9rem;
+  margin: 0 0 0.25rem 0;
+}
+
+.detail-value {
+  font-weight: bold;
+  margin: 0;
+} 
