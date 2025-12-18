@@ -13,7 +13,7 @@ export default function HeaderLanding() {
         {/* Logo */}
         <Link href="/" className="flex items-center space-x-2">
           <div className="flex items-center justify-center h-12">
-            <Image src="/logo-200x50.png" alt="MiguelLeón Logo" width={140} height={35} priority />
+            <Image src="/logo_canariascoches_neg-01.svg" alt="CanariasCoches.com Logo" width={140} height={35} priority />
           </div>
         </Link>
 

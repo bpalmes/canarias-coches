@@ -32,9 +32,9 @@ export default function CarCardCompact({ car }: CarCardCompactProps) {
   const [imageError, setImageError] = useState(false);
 
   // Priorizar la imagen de oferta si existe, sino usar la imagen principal
-  const displayImage = car.offerImageUrl || 
-    (car.images && car.images.length > 0 
-      ? (car.images.find(img => img.isPrimary) || car.images[0])?.url 
+  const displayImage = car.offerImageUrl ||
+    (car.images && car.images.length > 0
+      ? (car.images.find(img => img.isPrimary) || car.images[0])?.url
       : null);
 
   useEffect(() => {
@@ -53,8 +53,8 @@ export default function CarCardCompact({ car }: CarCardCompactProps) {
   // monthlyFinancingFee puede ser number | null | undefined
   const monthlyPayment = typeof car.monthlyFinancingFee === 'number'
     ? car.monthlyFinancingFee.toFixed(0)
-    : car.financedPrice 
-      ? (car.financedPrice / 72).toFixed(0) 
+    : car.financedPrice
+      ? (car.financedPrice / 72).toFixed(0)
       : (car.regularPrice / 72).toFixed(0);
 
   // Extraer nombre del modelo y versión del nombre completo
@@ -62,7 +62,7 @@ export default function CarCardCompact({ car }: CarCardCompactProps) {
   const nameParts = car.name.split(' ');
   let modelName = car.name;
   let version = '';
-  
+
   // Si tiene más de 2 palabras, asumir que las primeras 2-3 son el modelo
   if (nameParts.length > 3) {
     modelName = nameParts.slice(0, 3).join(' ');
@@ -74,7 +74,7 @@ export default function CarCardCompact({ car }: CarCardCompactProps) {
 
   // Formatear precios (formato: 18.985 €)
   const formatPrice = (price: number) => {
-    return new Intl.NumberFormat('es-ES', { 
+    return new Intl.NumberFormat('es-ES', {
       minimumFractionDigits: 0,
       maximumFractionDigits: 0
     }).format(price) + ' €';
@@ -114,11 +114,11 @@ export default function CarCardCompact({ car }: CarCardCompactProps) {
             />
           </div>
         )}
-        
+
         {car.isSold && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/30">
-            <div className="bg-white/90 px-6 py-2 rounded-md border-4 border-[#0f286a] transform -rotate-12">
-              <span className="text-4xl font-extrabold uppercase tracking-widest text-[#0f286a]">
+            <div className="bg-white/90 px-6 py-2 rounded-md border-4 border-primary transform -rotate-12">
+              <span className="text-4xl font-extrabold uppercase tracking-widest text-primary">
                 Vendido
               </span>
             </div>
@@ -136,12 +136,12 @@ export default function CarCardCompact({ car }: CarCardCompactProps) {
               <p className="text-gray-500 text-sm font-normal">{version}</p>
             )}
           </div>
-          
+
           {/* Etiqueta de Cuota */}
           <div className="text-right flex flex-col items-end">
-            <p className="text-[#2b5ba9] text-sm font-medium mb-1">Cuota desde</p>
-            <div 
-              className="bg-[#2b5ba9] text-white py-1.5 pl-5 pr-5 rounded-l-full flex items-baseline shadow-sm" 
+            <p className="text-secondary text-sm font-medium mb-1">Cuota desde</p>
+            <div
+              className="bg-secondary text-white py-1.5 pl-5 pr-5 rounded-l-full flex items-baseline shadow-sm"
               style={{ marginRight: '-20px' }}
             >
               <span className="font-bold text-2xl mr-1">{monthlyPayment} €</span>
@@ -162,10 +162,10 @@ export default function CarCardCompact({ car }: CarCardCompactProps) {
               {car.year || 'N/A'}
             </span>
           </div>
-          
+
           {/* Kilómetros */}
           <div className="flex flex-col items-center justify-center gap-1">
-            <span className="material-symbols-outlined text-[#2b5ba9]">speed</span>
+            <span className="material-symbols-outlined text-secondary">speed</span>
             <span className="text-gray-500 text-[13px] font-medium whitespace-nowrap">
               {car.kms !== null && car.kms !== undefined ? `${formatKms(car.kms)} km` : 'N/A'}
             </span>
@@ -173,7 +173,7 @@ export default function CarCardCompact({ car }: CarCardCompactProps) {
 
           {/* Transmisión */}
           <div className="flex flex-col items-center justify-center gap-1">
-            <span className="material-symbols-outlined text-[#2b5ba9]">account_tree</span>
+            <span className="material-symbols-outlined text-secondary">account_tree</span>
             <span className="text-gray-500 text-[13px] font-medium">
               {car.transmission || 'N/A'}
             </span>
@@ -204,7 +204,7 @@ export default function CarCardCompact({ car }: CarCardCompactProps) {
           {/* Precio Financiado */}
           <div className="text-right">
             <p className="text-gray-400 text-[13px] mb-0 leading-none font-light">Precio Financiado</p>
-            <span className="text-[#2b5ba9] text-[26px] font-bold tracking-tight leading-tight">
+            <span className="text-primary text-[26px] font-bold tracking-tight leading-tight">
               {formatPrice(car.financedPrice || car.regularPrice)}
             </span>
           </div>

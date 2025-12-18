@@ -68,76 +68,76 @@ export default function CarCard({ car }: CarCardProps) {
       transition={{ duration: 0.8, ease: "easeOut" }}
       className="bg-white rounded-lg shadow-md overflow-hidden group flex flex-col transition-shadow hover:shadow-xl h-full"
     >
-        <div className={`relative w-full bg-gray-100 overflow-hidden ${aspectClass}`}>
-          {primaryImage?.url && !imageError && inView ? (
+      <div className={`relative w-full bg-gray-100 overflow-hidden ${aspectClass}`}>
+        {primaryImage?.url && !imageError && inView ? (
+          <Image
+            src={primaryImage.url}
+            alt={car.name}
+            fill
+            sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+            className="object-cover group-hover:scale-105 transition-transform duration-300"
+            onError={() => {
+              console.log(`❌ Imagen falló al cargar:`, primaryImage.url);
+              setImageError(true);
+            }}
+            onLoad={() => {
+              console.log(`✅ Imagen cargó exitosamente:`, primaryImage.url);
+            }}
+            priority={false} // Lazy loading
+          />
+        ) : (
+          <div className="w-full h-full flex items-center justify-center bg-gray-200">
             <Image
-                src={primaryImage.url}
-                alt={car.name}
-                fill
-                sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                className="object-cover group-hover:scale-105 transition-transform duration-300"
-                onError={() => {
-                  console.log(`❌ Imagen falló al cargar:`, primaryImage.url);
-                  setImageError(true);
-                }}
-                onLoad={() => {
-                  console.log(`✅ Imagen cargó exitosamente:`, primaryImage.url);
-                }}
-                priority={false} // Lazy loading
+              src="/placeholder.svg"
+              alt="Placeholder"
+              width={200}
+              height={150}
+              className="object-contain opacity-50"
+              priority={false}
             />
-          ) : (
-            <div className="w-full h-full flex items-center justify-center bg-gray-200">
-              <Image
-                src="/placeholder.svg"
-                alt="Placeholder"
-                width={200}
-                height={150}
-                className="object-contain opacity-50"
-                priority={false}
-              />
-            </div>
-          )}
-          {car.isSold && (
-            <motion.div
-              initial={{ scale: 1.3, opacity: 0, rotate: -25 }}
-              animate={{ scale: 1, opacity: 1, rotate: -15 }}
-              transition={{ type: 'spring', stiffness: 320, damping: 16, delay: 0.1 }}
-              className="pointer-events-none absolute inset-0 flex items-center justify-center"
+          </div>
+        )}
+        {car.isSold && (
+          <motion.div
+            initial={{ scale: 1.3, opacity: 0, rotate: -25 }}
+            animate={{ scale: 1, opacity: 1, rotate: -15 }}
+            transition={{ type: 'spring', stiffness: 320, damping: 16, delay: 0.1 }}
+            className="pointer-events-none absolute inset-0 flex items-center justify-center"
+          >
+            <div
+              className="rounded-md border-4 px-6 py-2 shadow-lg"
+              style={{ borderColor: '#93c01f', transform: 'rotate(-12deg)', background: 'rgba(255,255,255,0.7)' }}
             >
-              <div
-                className="rounded-md border-4 px-6 py-2 shadow-lg"
-                style={{ borderColor: '#0f286a', transform: 'rotate(-12deg)', background: 'rgba(255,255,255,0.7)' }}
+              <span
+                className="text-4xl md:text-5xl font-extrabold uppercase tracking-widest"
+                style={{ color: '#93c01f', textShadow: '0 3px 8px rgba(0,0,0,0.25)' }}
               >
-                <span
-                  className="text-4xl md:text-5xl font-extrabold uppercase tracking-widest"
-                  style={{ color: '#0f286a', textShadow: '0 3px 8px rgba(0,0,0,0.25)' }}
-                >
-                  Vendido
-                </span>
-              </div>
-            </motion.div>
-          )}
+                Vendido
+              </span>
+            </div>
+          </motion.div>
+        )}
       </div>
       <div className="p-4 flex flex-col flex-grow">
         <h3 className="font-bold text-gray-800 text-lg leading-tight mt-1 truncate group-hover:text-blue-600">{car.name}</h3>
-        
+
         <div className="text-xs text-gray-500 my-3 flex flex-wrap gap-x-3 gap-y-1">
           {car.year && <span className="flex items-center gap-1"><Clock className="h-3 w-3" /> {car.year}</span>}
           {car.kms !== null && <span className="flex items-center gap-1"><Gauge className="h-3 w-3" /> {new Intl.NumberFormat('es-ES').format(car.kms)} km</span>}
           {car.transmission && <span className="flex items-center gap-1"><Zap className="h-3 w-3" /> {car.transmission}</span>}
         </div>
-        
+
         <div className="mt-auto pt-2 space-y-3">
           <div className="flex justify-between items-center">
-              <div className="flex items-center gap-2">
-                  <FuelIcon type={car.fuel} />
-                  <span className="text-sm font-medium">{car.fuel}</span>
+            <div className="flex items-center gap-2">
+              <FuelIcon type={car.fuel} />
+              <span className="text-sm font-medium">{car.fuel}</span>
+            </div>
+            {car.financedPrice && (
+              <div className="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full">
+                Desde {monthlyPayment}€/mes
               </div>
-              {car.financedPrice && (
-                  <div className="bg-green-100 text-green-800 text-xs font-bold px-3 py-1 rounded-full">
-                      Desde {monthlyPayment}€/mes
-                  </div>
-              )}
+            )}
           </div>
           <div className="flex justify-between items-end">
             {/* Precio al contado tachado (solo si hay precio financiado) */}

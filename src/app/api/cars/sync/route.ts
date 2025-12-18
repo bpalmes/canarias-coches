@@ -48,18 +48,18 @@ export async function POST(req: Request) {
 
         const response = await fetch(FEED_URL, { cache: 'no-store' });
         if (!response.ok) throw new Error(`Failed to fetch feed: ${response.statusText}`);
-        
+
         const xmlText = await response.text();
         const parsedXml = await parseStringPromise(xmlText, {
             explicitArray: true,
             charkey: '_', // Use '_' for CDATA content
         });
-        
+
         const items = parsedXml.standard?.ad;
         if (!items || !Array.isArray(items)) {
             const topLevelKeys = Object.keys(parsedXml).join(', ');
             let secondLevelKeys = 'N/A';
-            if(parsedXml.standard && parsedXml.standard[0]) {
+            if (parsedXml.standard && parsedXml.standard[0]) {
                 secondLevelKeys = Object.keys(parsedXml.standard[0]).join(', ');
             }
             throw new Error(`Could not find 'ad' array in 'standard' element. Top keys: [${topLevelKeys}], Standard keys: [${secondLevelKeys}]`);
@@ -73,7 +73,7 @@ export async function POST(req: Request) {
         let markedAsSoldCount = 0;
         let skippedCount = 0;
         let errorCount = 0;
-        
+
         const results = {
             successful: [] as Array<{ sku: string; name: string; action: 'created' | 'updated'; details: string }>,
             skipped: [] as Array<{ sku: string; name: string; reason: string }>,
@@ -85,7 +85,7 @@ export async function POST(req: Request) {
             try {
                 // Obtener todos los SKUs del feed
                 const feedSkus = items.map(item => extract(item, 'id')).filter(sku => sku !== null);
-                
+
                 // Marcar como vendidos los coches que ya no están en el feed
                 const cleanupResult = await prisma.car.updateMany({
                     where: {
@@ -97,7 +97,7 @@ export async function POST(req: Request) {
                         isSold: true
                     }
                 });
-                
+
                 markedAsSoldCount = cleanupResult.count;
                 console.log(`Limpieza automática: ${markedAsSoldCount} coches marcados como vendidos`);
             } catch (cleanupError) {
@@ -111,6 +111,10 @@ export async function POST(req: Request) {
             }
         }
 
+        // 1. Fetch default dealership once
+        const dealer = await prisma.dealership.findUnique({ where: { slug: 'demo-autos' } });
+        if (!dealer) throw new Error('Default dealership "demo-autos" not found. Please run seed script.');
+
         for (const item of batch) { // item here is an <ad>
             const sku = extract(item, 'id');
             const name = extract(item, 'title');
@@ -118,33 +122,31 @@ export async function POST(req: Request) {
             const vin = extract(item, 'vin');
 
             if (!sku || !name || regularPrice === null || !vin) {
-                const reason = `Datos faltantes: SKU=${sku ? 'OK' : 'FALTA'}, Nombre=${name ? 'OK' : 'FALTA'}, Precio=${regularPrice !== null ? 'OK' : 'FALTA'}, VIN=${vin ? 'OK' : 'FALTA'}`;
+                const reason = `Datos faltantes: SKU=${sku ? 'OK' : 'FALTA'}, Name=${name ? 'OK' : 'FALTA'}, Price=${regularPrice !== null ? 'OK' : 'FALTA'}`;
                 results.skipped.push({ sku: sku || 'N/A', name: name || 'N/A', reason });
                 skippedCount++;
-                continue; 
+                continue;
             }
 
             const carData = {
                 name,
                 version: extract(item, 'version'),
                 vin,
-                regularPrice,
+                price: regularPrice, // Map regularPrice to price
                 financedPrice: extractFloat(item, 'financed_price'),
                 monthlyFinancingFee: extractFloat(item, 'monthly_financing_fee'),
                 vatDeductible: extract(item, 'vat') === 'True',
-                make: extract(item, 'make'),
-                model: extract(item, 'model'),
                 bodytype: extract(item, 'bodytype'),
-                year: extractInt(item, 'year'),
-                month: extractInt(item, 'month'),
-                kms: extractInt(item, 'kms'),
+                year: extractInt(item, 'year') || 0, // Default to 0 if missing
+                month: extractInt(item, 'month') || 0,
+                kms: extractInt(item, 'kms') || 0,
                 fuel: extract(item, 'fuel'),
-                power: extractInt(item, 'power'),
+                power: extractInt(item, 'power') || 0,
                 transmission: extract(item, 'transmission'),
                 color: extract(item, 'color'),
-                doors: extractInt(item, 'doors'),
-                seats: extractInt(item, 'seats'),
-                engineSize: extractInt(item, 'engine_size'),
+                doors: extractInt(item, 'doors') || 0,
+                seats: extractInt(item, 'seats') || 0,
+                engineSize: extractInt(item, 'engine_size') || 0,
                 gears: extractInt(item, 'gears'),
                 store: extract(item, 'store'),
                 city: extract(item, 'city'),
@@ -155,8 +157,8 @@ export async function POST(req: Request) {
                 crashed: extract(item, 'crashed') === '1',
                 description: extract(item, 'content'),
                 equipment: extract(item, 'equipment'),
-                isSold: false, // Asegurar que los coches del feed están disponibles
-                source: 'feed' // Marcar que vienen del feed
+                isSold: false,
+                source: 'feed'
             };
 
             const imageUrls = item.pictures?.[0]?.picture
@@ -167,49 +169,67 @@ export async function POST(req: Request) {
                 .filter((img: { url: string; } | null): img is { url: string } => img !== null) ?? [];
 
             try {
-                // We use a transaction to ensure data integrity
                 await prisma.$transaction(async (tx) => {
-                    // 1. Find the existing car, if any
-                    const existingCar = await tx.car.findUnique({ where: { sku: sku } });
+                    // Norm Make/Model
+                    const makeName = extract(item, 'make') || 'Unknown';
+                    const modelName = extract(item, 'model') || 'Unknown';
 
-                    // 2. If it exists, delete only the images sourced from the "feed"
-                    if (existingCar) {
-                        await tx.image.deleteMany({
-                            where: {
-                                carId: existingCar.id,
-                                source: 'feed',
-                            },
-                        });
-                    }
+                    let make = await tx.make.findFirst({ where: { name: { equals: makeName, mode: 'insensitive' } } });
+                    if (!make) make = await tx.make.create({ data: { name: makeName } });
 
-                    // 3. Upsert the car data and create the new "feed" images
-                    const car = await tx.car.upsert({
-                        where: { sku: sku },
-                        update: { ...carData, images: { create: imageUrls.map((img: { url: string }) => ({ ...img, source: 'feed' })) } },
-                        create: { sku: sku, ...carData, images: { create: imageUrls.map((img: { url: string }) => ({ ...img, source: 'feed' })) } },
+                    let model = await tx.model.findFirst({ where: { name: { equals: modelName, mode: 'insensitive' }, makeId: make.id } });
+                    if (!model) model = await tx.model.create({ data: { name: modelName, makeId: make.id } });
+
+                    // Find existing car for this dealership with this SKU
+                    const existingCar = await tx.car.findFirst({
+                        where: {
+                            sku: sku,
+                            dealershipId: dealer.id
+                        }
                     });
 
-                    if (car.createdAt.getTime() === car.updatedAt.getTime()) {
-                        createdCount++;
-                        results.successful.push({
-                            sku,
-                            name,
-                            action: 'created',
-                            details: `Coche creado con ${imageUrls.length} imágenes`
+                    let car;
+
+                    if (existingCar) {
+                        // Delete old feed images
+                        await tx.image.deleteMany({
+                            where: { carId: existingCar.id, source: 'feed' },
                         });
-                    } else {
+
+                        // Update
+                        car = await tx.car.update({
+                            where: { id: existingCar.id },
+                            data: {
+                                ...carData,
+                                dealershipId: dealer.id,
+                                makeId: make.id,
+                                modelId: model.id,
+                                images: { create: imageUrls.map((img: { url: string }) => ({ ...img, source: 'feed' })) }
+                            }
+                        });
                         updatedCount++;
-                        results.successful.push({
-                            sku,
-                            name,
-                            action: 'updated',
-                            details: `Coche actualizado con ${imageUrls.length} imágenes`
+                        results.successful.push({ sku, name, action: 'updated', details: 'Updated' });
+
+                    } else {
+                        // Create
+                        car = await tx.car.create({
+                            data: {
+                                sku: sku,
+                                ...carData,
+                                dealershipId: dealer.id,
+                                makeId: make.id,
+                                modelId: model.id,
+                                status: 'PUBLISHED',
+                                images: { create: imageUrls.map((img: { url: string }) => ({ ...img, source: 'feed' })) }
+                            }
                         });
+                        createdCount++;
+                        results.successful.push({ sku, name, action: 'created', details: 'Created' });
                     }
                 });
             } catch (e: unknown) {
                 const error = e as Error;
-                console.error(`Failed to process SKU ${sku}: ${error.message}`);
+                console.error(`Failed to process SKU ${sku}:`, error);
                 results.errors.push({
                     sku,
                     name,
@@ -217,33 +237,33 @@ export async function POST(req: Request) {
                 });
                 errorCount++;
             }
-        }
-        
+        } // end for loop
+
         const nextOffset = safeOffset + batch.length;
         const done = nextOffset >= total;
 
         let message = `Lote procesado (${safeOffset + 1}-${nextOffset} de ${total}). ` +
-                      `Creados: ${createdCount}, Actualizados: ${updatedCount}`;
-        
+            `Creados: ${createdCount}, Actualizados: ${updatedCount}`;
+
         if (skippedCount > 0) {
             message += `, Omitidos: ${skippedCount}`;
         }
-        
+
         if (errorCount > 0) {
             message += `, Errores: ${errorCount}`;
         }
-        
+
         if (markedAsSoldCount > 0) {
             message += `, Marcados como vendidos: ${markedAsSoldCount}`;
         }
-        
+
         message += done ? '. Sincronización completada.' : '. Continúe con el siguiente lote.';
 
-        return NextResponse.json({ 
-            message, 
-            nextOffset, 
-            total, 
-            done, 
+        return NextResponse.json({
+            message,
+            nextOffset,
+            total,
+            done,
             processed: batch.length,
             createdCount,
             updatedCount,

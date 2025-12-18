@@ -28,11 +28,11 @@ export default async function BuscadorPage() {
     },
     {
       text: "Miguel",
-      className: "text-blue-500 dark:text-blue-500",
+      className: "text-secondary dark:text-secondary",
     },
     {
       text: "León.",
-      className: "text-blue-500 dark:text-blue-500",
+      className: "text-secondary dark:text-secondary",
     },
   ];
 

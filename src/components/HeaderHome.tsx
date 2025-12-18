@@ -15,7 +15,7 @@ import { Globe, Search } from 'lucide-react';
 
 export default function HeaderHome() {
   const [isScrolled, setIsScrolled] = useState(false);
-  
+
   // FASE 1: Transparente cuando estamos quietos
   // FASE 2: Como el buscador cuando scrolleamos
   useEffect(() => {
@@ -40,14 +40,14 @@ export default function HeaderHome() {
   const CustomNavbarLogo = () => (
     <Link href="/" className="flex items-center space-x-2">
       <div className="flex items-center justify-center h-12">
-        <Image src="/logo-200x50.png" alt="MiguelLeón Logo" width={140} height={35} priority />
+        <Image src="/logo_canariascoches_neg-01.svg" alt="CanariasCoches.com Logo" width={140} height={35} priority />
       </div>
     </Link>
   );
 
   return (
     <header className="fixed top-0 left-0 right-0 z-50 transition-all duration-300 bg-transparent">
-      <Navbar 
+      <Navbar
         isBlue={isScrolled}
         shrinkOnScroll={true}
         className="transition-all duration-300 bg-transparent"
@@ -71,20 +71,20 @@ export default function HeaderHome() {
         <MobileNav isBlue={isScrolled}>
           <MobileNavHeader>
             <CustomNavbarLogo />
-            <MobileNavToggle 
+            <MobileNavToggle
               isOpen={isMobileMenuOpen}
               onClick={() => setIsMobileMenuOpen(v => !v)}
               isBlue={false}
             />
           </MobileNavHeader>
-          <MobileNavMenu 
-            isOpen={isMobileMenuOpen} 
+          <MobileNavMenu
+            isOpen={isMobileMenuOpen}
             onClose={() => setIsMobileMenuOpen(false)}
           >
             {navItems.map((item, idx) => (
-              <Link 
-                key={idx} 
-                href={item.link} 
+              <Link
+                key={idx}
+                href={item.link}
                 className="block px-5 py-4 text-black hover:bg-gray-100"
                 onClick={() => setIsMobileMenuOpen(false)}
               >

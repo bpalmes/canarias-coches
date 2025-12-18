@@ -21,7 +21,7 @@ export default function ContactSheet({ isOpen, onClose }: ContactSheetProps) {
             onClick={onClose}
             className="fixed inset-0 bg-black/30 z-40"
           />
-          
+
           {/* Sheet */}
           <motion.div
             initial={{ x: '100%' }}
@@ -33,7 +33,7 @@ export default function ContactSheet({ isOpen, onClose }: ContactSheetProps) {
             <button onClick={onClose} className="absolute top-8 right-8 text-gray-500 hover:text-gray-800 z-10">
               <X size={24} />
             </button>
-            
+
             <div className="h-full flex flex-col">
               <h2 className="text-3xl font-bold mb-6">¿Interesado?</h2>
               <p className="text-gray-600 mb-8">Déjanos tus datos y te contactaremos lo antes posible.</p>
@@ -41,27 +41,27 @@ export default function ContactSheet({ isOpen, onClose }: ContactSheetProps) {
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                   <div>
                     <label htmlFor="firstName" className="block text-sm font-medium text-gray-700 mb-1">Nombre</label>
-                    <input type="text" id="firstName" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+                    <input type="text" id="firstName" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
                   </div>
                   <div>
                     <label htmlFor="lastName" className="block text-sm font-medium text-gray-700 mb-1">Apellidos</label>
-                    <input type="text" id="lastName" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+                    <input type="text" id="lastName" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
                   </div>
                 </div>
                 <div className="mb-6">
                   <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email</label>
-                  <input type="email" id="email" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+                  <input type="email" id="email" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
                 </div>
                 <div className="mb-6">
                   <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">Teléfono</label>
-                  <input type="tel" id="phoneNumber" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500" />
+                  <input type="tel" id="phoneNumber" className="w-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary" />
                 </div>
                 <div className="mb-6 flex-grow">
                   <label htmlFor="message" className="block text-sm font-medium text-gray-700 mb-1">Mensaje</label>
-                  <textarea id="message" rows={5} className="w-full h-full px-4 py-2 border border-gray-300 rounded-md focus:ring-blue-500 focus:border-blue-500 resize-none"></textarea>
+                  <textarea id="message" rows={5} className="w-full h-full px-4 py-2 border border-gray-300 rounded-md focus:ring-primary focus:border-primary resize-none"></textarea>
                 </div>
                 <div className="text-right">
-                  <button type="submit" className="bg-blue-600 text-white font-semibold px-6 py-3 rounded-md hover:bg-blue-700 transition-colors">
+                  <button type="submit" className="bg-secondary text-white font-semibold px-6 py-3 rounded-md hover:opacity-90 transition-opacity">
                     Enviar mensaje
                   </button>
                 </div>

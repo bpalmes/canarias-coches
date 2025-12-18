@@ -1,7 +1,7 @@
 "use client";
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { login } from '@/utils/auth';
+import { signIn } from 'next-auth/react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -15,6 +15,7 @@ export default function LoginPage() {
   const [success, setSuccess] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
+  // ... state
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -23,16 +24,23 @@ export default function LoginPage() {
     setIsLoading(true);
 
     try {
-      const result = await login({ identifier, password });
-      
-      // Mostrar mensaje de éxito
-      setSuccess(`¡Bienvenido ${result.user.email}! Redirigiendo...`);
-      
-      // Esperar un momento para que el usuario vea el mensaje
+      const result = await signIn('credentials', {
+        email: identifier,
+        password: password,
+        redirect: false,
+      });
+
+      if (result?.error) {
+        throw new Error('Credenciales inválidas');
+      }
+
+      setSuccess(`¡Bienvenido! Redirigiendo...`);
+
       setTimeout(() => {
         router.push('/admin/manage-offers');
-      }, 1500);
-      
+        router.refresh();
+      }, 1000);
+
     } catch (err) {
       if (err instanceof Error) {
         setError(err.message);
@@ -75,21 +83,21 @@ export default function LoginPage() {
                 disabled={isLoading}
               />
             </div>
-            
+
             {error && (
               <Alert variant="destructive">
                 <AlertTriangle className="h-4 w-4" />
                 <AlertDescription>{error}</AlertDescription>
               </Alert>
             )}
-            
+
             {success && (
               <Alert className="border-green-200 bg-green-50 text-green-800">
                 <CheckCircle className="h-4 w-4" />
                 <AlertDescription>{success}</AlertDescription>
               </Alert>
             )}
-            
+
             <Button type="submit" className="w-full" disabled={isLoading}>
               {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
               {isLoading ? 'Iniciando sesión...' : 'Login'}

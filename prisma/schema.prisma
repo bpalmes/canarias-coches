@@ -1,9 +1,6 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -13,155 +10,309 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+// -----------------------------------------------------
+// ENUMS
+// -----------------------------------------------------
+
 enum Role {
-  USER
-  ADMIN
+  SUPER_ADMIN // Platform owner: sees all dealerships
+  DEALERSHIP_ADMIN // Admin of a specific dealership
+  DEALERSHIP_USER // Staff of a specific dealership
+  CUSTOMER // Registered buyer (optional for now)
+}
+
+enum DealershipType {
+  OFFICIAL // Oficial Dealer
+  MULTIBRAND // Compraventa generico
+  PRIVATE // Particular (future use)
+}
+
+enum CarStatus {
+  DRAFT
+  PUBLISHED
+  RESERVED
+  SOLD
+}
+
+enum LeadStatus {
+  NEW
+  CONTACTED
+  VISIT_SCHEDULED
+  OFFER_SENT
+  WON
+  LOST
+}
+
+// -----------------------------------------------------
+// CORE TENANCY (Multi-tenant)
+// -----------------------------------------------------
+
+model Dealership {
+  id   Int            @id @default(autoincrement())
+  slug String         @unique // for URLs: canarias-coches.com/dealership-slug
+  name String
+  type DealershipType @default(MULTIBRAND)
+
+  // Contact & Location
+  email   String?
+  phone   String?
+  address String?
+  city    String?
+  logoUrl String?
+  website String?
+
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  users User[]
+  cars  Car[]
+  leads Lead[]
+  financingConditions FinancingCondition[]
+  financingRequests FinancingRequest[]
 }
 
 model User {
-  id        Int      @id @default(autoincrement())
-  email     String   @unique
-  password  String
-  role      Role     @default(USER)
+  id       Int     @id @default(autoincrement())
+  email    String  @unique
+  password String
+  name     String?
+  role     Role    @default(DEALERSHIP_USER)
+
+  // Multi-tenancy
+  dealership   Dealership? @relation(fields: [dealershipId], references: [id])
+  dealershipId Int? // Null for SUPER_ADMIN, Required for others
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
-model Car {
-  id                      Int       @id @default(autoincrement())
-  sku                     String    @unique // From <id>
-  name                    String    // From <title>
-  version                 String?   // From <version>
-  vin                     String?   @unique // From <vin>
-  
-  // Pricing
-  regularPrice            Float     // From <price>
-  financedPrice           Float?    // From <financed_price>
-  monthlyFinancingFee     Float?    // From <monthly_financing_fee>
-  vatDeductible           Boolean   @default(false) // From <vat>
+// -----------------------------------------------------
+// VEHICLE NORMALIZATION (3NF)
+// -----------------------------------------------------
 
-  // Core Details
-  make                    String?   // From <make>
-  model                   String?   // From <model>
-  bodytype                String?   // From <bodytype>
-  year                    Int?      // From <year>
-  month                   Int?      // From <month>
-  kms                     Int?      // From <kms>
-  fuel                    String?   // From <fuel>
-  power                   Int?      // From <power> (CV)
-  transmission            String?   // From <transmission>
-  color                   String?   // From <color>
-  doors                   Int?      // From <doors>
-  seats                   Int?      // From <seats>
-  engineSize              Int?      // From <engine_size> (cc)
-  gears                   Int?      // From <gears>
-
-  // Location
-  store                   String?   // From <store>
-  city                    String?   // From <city>
-  address                 String?   // From <address>
-
-  // Technical & Status
-  numberplate             String?   // From <numberplate>
-  guarantee               String?   // From <guarantee>
-  environmentalBadge      String?   // From <environmental_badge>
-  crashed                 Boolean   @default(false) // From <crashed>
-  isSold                  Boolean   @default(false)
-
-  // Descriptions
-  description             String?   @db.Text // From <content>
-  equipment               String?   @db.Text // From <equipment>
-  
-  // Source tracking
-  source                  String    @default("feed") // "feed" or "manual"
-  
-  // Foto especial para ofertas
-  offerImageUrl           String?   // URL de la foto especial que aparece solo en ofertas
-  
-  images                  Image[]
-  offers                  Offer[]   @relation("CarToOffer")
-  leads                   Lead[]
-
-  createdAt               DateTime  @default(now())
-  updatedAt               DateTime  @updatedAt
+model Make {
+  id     Int     @id @default(autoincrement())
+  name   String  @unique // e.g., "Toyota"
+  models Model[]
+  active Boolean @default(true)
+  Car    Car[]
 }
 
-model Offer {
-  id          Int      @id @default(autoincrement())
-  title       String
-  description String?
-  slug        String   @unique
-  cars        Car[]    @relation("CarToOffer")
-  
-  // Banner promocional
-  hasPromotionalBanner Boolean   @default(false)
-  bannerImageUrl       String?   // URL de la imagen/video/gif del banner
-  bannerTitle          String?   // Texto grande del banner
-  bannerSubtitle       String?   // Texto pequeño del banner
-  bannerSize           String?   @default("medium") // small, medium, large
-  
-  // Títulos personalizados para la oferta (Figma style)
-  offerTitle           String?   // Título principal (Poppins, grande)
-  offerSubtitle        String?   // Subtítulo (Lato, pequeño)
-  
-  // Imágenes de la oferta
-  innerImageUrl        String?   // Imagen interior grande (relación aspecto Figma)
-  coverImageUrl        String?   // Imagen exterior cuadrada (para home)
-  
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+model Model {
+  id     Int    @id @default(autoincrement())
+  name   String // e.g., "Corolla"
+  make   Make   @relation(fields: [makeId], references: [id])
+  makeId Int
+  cars   Car[]
+
+  @@unique([makeId, name]) // Unique model name per make
+}
+
+// -----------------------------------------------------
+// INVENTORY
+// -----------------------------------------------------
+
+model Car {
+  id Int @id @default(autoincrement())
+
+  // Multi-tenancy
+  dealership   Dealership @relation(fields: [dealershipId], references: [id])
+  dealershipId Int
+
+  // Core ID
+  sku String? // Dealer internal ref
+  name String? // Display title
+  vin String? // @unique logic removed temporarily to allow drafts without VIN or duplicate potential checks
+
+  // Normalized Details
+  make    Make  @relation(fields: [makeId], references: [id])
+  makeId  Int
+  model   Model @relation(fields: [modelId], references: [id])
+  modelId Int
+
+  version String? // Free text for specific version detail "2.0 TDI Sport"
+
+  // Pricing
+  price               Float
+  financedPrice       Float?
+  monthlyFinancingFee Float?
+  vatDeductible       Boolean @default(false)
+
+  // Specs
+  bodytype     String?
+  year         Int
+  month        Int?
+  kms          Int
+  fuel         String? // Could be Enum or Normalized later
+  power        Int? // CV
+  transmission String? // Manual/Auto
+  color        String?
+  doors        Int?
+  seats        Int?
+  engineSize   Int? // cc
+  gears        Int?
+
+  // Location (Overrides Dealership default if needed)
+  store   String?
+  city    String?
+  address String?
+
+  // Additional Info
+  numberplate        String?
+  guarantee          String?
+  environmentalBadge String?
+  crashed            Boolean @default(false)
+
+  // Status
+  status CarStatus @default(DRAFT)
+  isSold Boolean   @default(false) // Keep for backward compat logic, sync with status
+
+  // Content
+  description String? @db.Text
+  equipment   String? @db.Text
+
+  // B2B Marketplace
+  isB2BAvailable Boolean @default(false)
+  b2bPrice       Float? // Price for other dealers
+
+  // Metadata
+  source      String?  @default("manual") // 'feed', 'manual', 'xml'
+
+  // Images
+  images Image[]
+
+  // Relations
+  leads  Lead[]
+  offers Offer[] @relation("CarToOffer")
+  financingRequests FinancingRequest[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model Image {
-  id        Int      @id @default(autoincrement())
+  id        Int     @id @default(autoincrement())
   url       String
-  car       Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  car       Car     @relation(fields: [carId], references: [id], onDelete: Cascade)
   carId     Int
-  isPrimary Boolean  @default(false)
-  source    String   @default("feed") // "feed" or "manual"
+  isPrimary Boolean @default(false)
+  order     Int     @default(0)
+  source    String  @default("feed")
 }
 
+// -----------------------------------------------------
+// MARKETING & SALES
+// -----------------------------------------------------
+
+model Offer {
+  id          Int     @id @default(autoincrement())
+  title       String
+  slug        String  @unique
+  description String?
+  cars        Car[]   @relation("CarToOffer")
+
+  // Visuals
+  bannerImageUrl String?
+
+  // Títulos personalizados
+  offerTitle    String?
+  offerSubtitle String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model FinancingCondition {
+  id            Int        @id @default(autoincrement())
+  dealership    Dealership @relation(fields: [dealershipId], references: [id])
+  dealershipId  Int
+
+  name          String     // e.g. "Standard Bank Campaign"
+  interestRate  Float      // TIN e.g. 5.99
+  minEntry      Float?     // Minimum down payment (percentage or fixed, handled by logic)
+  openingFee    Float?     // Apertura %
+  
+  minTerm       Int        @default(12) // months
+  maxTerm       Int        @default(120) // months
+  
+  isActive      Boolean    @default(true)
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+}
+
+
 model Lead {
-  id          String   @id @default(cuid())
-  firstName   String
-  lastName    String
-  email       String
-  phone       String?
-  message     String?
-  
-  // Información del coche
-  carId       Int?     // Relacionado con Car.id (Int)
-  carMake     String?
-  carModel    String?
-  carYear     Int?
-  carLicensePlate String?
-  carStockNumber  String?
-  
-  // Metadatos del lead
-  source      String?  // website, phone, etc.
-  medium      String?  // car_page, contact_form, etc.
-  campaign    String?  // car_interest, general_contact, etc.
-  sheetName   String?  // Nombre de la hoja de Google Sheets de origen
-  leadType    String   @default("sales") // sales (ventas) o appraisal (tasaciones)
-  
-  // Identificador único de Facebook/Instagram
-  facebookLeadId String? @unique // ID único del lead de Facebook (l:780430904885877)
-  
-  // Estado de envío a Walcu
-  walcuLeadId String?  // ID del lead en Walcu CRM
-  walcuStatus String   @default("pending") // pending, sent, failed
-  walcuError  String?  // Mensaje de error si falló
-  
-  // Timestamps
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  
-  // Relaciones
-  car         Car?     @relation(fields: [carId], references: [id])
-  
+  id String @id @default(cuid())
+
+  // Multi-tenancy
+  dealership   Dealership? @relation(fields: [dealershipId], references: [id])
+  dealershipId Int? // Null if it's a general platform lead not assigned yet (rare)
+
+  // Customer Info
+  firstName String
+  lastName  String?
+  email     String
+  phone     String?
+  message   String?
+
+  // Interest
+  car   Car? @relation(fields: [carId], references: [id])
+  carId Int?
+
+  status LeadStatus @default(NEW)
+  source String? // website, facebook, walcu
+
+  // CRM External IDs
+  walcuLeadId String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([dealershipId])
   @@index([email])
-  @@index([walcuStatus])
-  @@index([createdAt])
+  
+  financingRequest FinancingRequest?
+}
+
+model FinancingRequest {
+  id String @id @default(cuid())
+
+  // Tenancy
+  dealership   Dealership @relation(fields: [dealershipId], references: [id])
+  dealershipId Int
+
+  // Relation to Lead (Customer) & Car
+  lead   Lead @relation(fields: [leadId], references: [id])
+  leadId String @unique // One financing request tracked per lead for simplicity
+  
+  car    Car @relation(fields: [carId], references: [id])
+  carId  Int
+
+  // Financial details
+  amount        Float
+  term          Int
+  downPayment   Float @default(0)
+  monthlyFee    Float?
+
+  // Genesis / External Info
+  genesisId     String? // ID in external ERP
+  genesisStatus String? // Status in external ERP
+
+  // System Status
+  status        FinancingStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+enum FinancingStatus {
+  PENDING
+  PROCESSING
+  APPROVED
+  REJECTED
+  FUNDED
 }
 
 model GalleryImage {

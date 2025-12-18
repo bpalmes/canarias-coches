@@ -27,6 +27,10 @@ export const metadata: Metadata = {
   },
 };
 
+import { Providers } from "./providers";
+
+// ... existing imports
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -35,8 +39,8 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        <link 
-          rel="stylesheet" 
+        <link
+          rel="stylesheet"
           href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200"
           crossOrigin="anonymous"
         />
@@ -44,13 +48,15 @@ export default function RootLayout({
       <body
         className={`${poppins.variable} ${lato.variable} font-sans antialiased flex flex-col min-h-screen`}
       >
-        <TransitionProvider>
-          <ConditionalHeader />
-          <main className="flex-grow">{children}</main>
-          <ConditionalFooter />
-          <CookieConsent />
-          <TrackingPixels />
-        </TransitionProvider>
+        <Providers>
+          <TransitionProvider>
+            <ConditionalHeader />
+            <main className="flex-grow">{children}</main>
+            <ConditionalFooter />
+            <CookieConsent />
+            <TrackingPixels />
+          </TransitionProvider>
+        </Providers>
       </body>
     </html>
   );
