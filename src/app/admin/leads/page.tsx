@@ -2,16 +2,45 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { LeadService } from "@/services/lead-service"
 import { redirect } from "next/navigation"
+import { getActiveDealershipId } from '@/lib/auth-helpers'
 
 export default async function LeadsDashboard() {
   const session = await getServerSession(authOptions)
 
-  if (!session || !session.user.dealershipId) {
+  if (!session) {
     redirect('/login')
   }
 
+  // Allow Super Admin validation
+  if (!session.user.dealershipId && session.user.role !== 'SUPER_ADMIN') {
+    redirect('/login')
+  }
+
+  const dealershipId = await getActiveDealershipId(session)
   const leadService = new LeadService()
-  const leads = await leadService.getByDealership(session.user.dealershipId)
+
+  // If dealershipId is set, get for that dealer.
+  // If not (Super Admin global), ideally get all.
+  // Assuming getByDealership might error with undefined, or we need a getAll.
+  // For now, if impersonating, show dealer leads. If Super Admin global, show emptiness or try fetch.
+  // Let's rely on getByDealership accepting undefined/null if the service was built for it,
+  // or I'll implement a safe fallback.
+  // Actually, let's view LeadService first.
+  let leads: any[] = []
+  if (dealershipId) {
+    leads = await leadService.getByDealership(dealershipId)
+  } else if (session.user.role === 'SUPER_ADMIN') {
+    // leads = await leadService.getAll() // Future implementation
+    // For now, show empty or try to fetch all if backend supports it.
+    // Trying to fetch all requires knowing the method.
+    // I'll try to keep it safe: just empty for now to fix crash, or inspect service.
+    try {
+      // Attempt to call getByDealership with a falsy value if it handles it? No.
+      // Just return empty array to prevent 500 error, user can then impersonate.
+      // Or even better: Show "Select a dealership" message?
+      // I'll update the UI to handle it.
+    } catch (e) { }
+  }
 
   return (
     <div className="px-4 sm:px-6 lg:px-8 py-8">

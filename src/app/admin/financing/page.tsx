@@ -2,21 +2,31 @@ import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { FinancingRequestService } from "@/services/financing-request-service"
 import { redirect } from "next/navigation"
+import { getActiveDealershipId } from '@/lib/auth-helpers'
 
 export default async function FinancingDashboard() {
     const session = await getServerSession(authOptions)
 
-    if (!session || !session.user.dealershipId) {
+    if (!session) {
         redirect('/login')
     }
 
+    // Allow Super Admin validation
+    if (!session.user.dealershipId && session.user.role !== 'SUPER_ADMIN') {
+        redirect('/login')
+    }
+
+    const dealershipId = await getActiveDealershipId(session)
     const service = new FinancingRequestService()
 
     // Note: This might fail if the DB migration hasn't been applied yet.
     // Ensure the user runs `npx prisma db push` if they see errors.
     let requests: any[] = []
     try {
-        requests = await service.getByDealership(session.user.dealershipId)
+        if (dealershipId) {
+            requests = await service.getByDealership(dealershipId)
+        }
+        // If Super Admin (no dealershipId), we could fetch global, but for now empty list is safe.
     } catch (e) {
         console.error("Failed to fetch financing requests. DB might be out of sync.", e)
     }
