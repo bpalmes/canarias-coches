@@ -6,6 +6,7 @@ import TransitionProvider from "@/components/animations/TransitionProvider";
 import ConditionalHeader from "@/components/ConditionalHeader";
 import CookieConsent from "@/components/CookieConsent";
 import TrackingPixels from "@/components/TrackingPixels";
+import { Toaster } from "@/components/ui/toaster";
 
 const poppins = Poppins({
   variable: "--font-poppins",
@@ -55,6 +56,7 @@ export default function RootLayout({
             <ConditionalFooter />
             <CookieConsent />
             <TrackingPixels />
+            <Toaster />
           </TransitionProvider>
         </Providers>
       </body>

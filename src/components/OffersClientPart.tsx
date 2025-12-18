@@ -61,7 +61,20 @@ export default function OffersClientPart() {
       try {
         // Cargar solo los primeros 6 coches inmediatamente
         const response = await fetch('/api/cars?limit=6');
+        if (!response.ok) {
+          throw new Error('Failed to fetch initial cars');
+        }
         const initialData = await response.json();
+        
+        // Verificar que initialData sea un array
+        if (!Array.isArray(initialData)) {
+          console.error('API returned invalid data:', initialData);
+          setInitialCars([]);
+          setAllCars([]);
+          setLoading(false);
+          return;
+        }
+        
         setInitialCars(initialData);
         setAllCars(initialData);
         setLoading(false);
@@ -69,12 +82,22 @@ export default function OffersClientPart() {
         // Cargar el resto en segundo plano
         setLoadingMore(true);
         const fullResponse = await fetch('/api/cars');
+        if (!fullResponse.ok) {
+          throw new Error('Failed to fetch all cars');
+        }
         const fullData = await fullResponse.json();
-        setAllCars(fullData);
+        
+        // Verificar que fullData sea un array
+        if (Array.isArray(fullData)) {
+          setAllCars(fullData);
+        }
         setLoadingMore(false);
       } catch (error) {
         console.error('Error fetching cars:', error);
+        setInitialCars([]);
+        setAllCars([]);
         setLoading(false);
+        setLoadingMore(false);
       }
     };
     fetchCars();

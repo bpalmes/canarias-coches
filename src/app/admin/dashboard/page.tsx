@@ -3,18 +3,19 @@ import withAuth from '@/components/withAuth';
 import { Card, CardHeader, CardTitle, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
-import { 
-  Users, 
-  Car, 
-  FileText, 
-  Settings, 
-  BarChart3, 
+import {
+  Users,
+  Car,
+  FileText,
+  Settings,
+  BarChart3,
   Upload,
   Eye,
   UserPlus,
   Megaphone,
   Images
 } from 'lucide-react';
+import { distributeCarsForTesting } from '@/app/actions/testing';
 
 function AdminDashboard() {
   const modules = [
@@ -163,7 +164,27 @@ function AdminDashboard() {
           </Card>
         </div>
       </div>
-    </div>
+
+      {/* Development Tools */}
+      <div className="mt-12 p-6 bg-slate-100 rounded-lg border border-slate-200">
+        <h2 className="text-xl font-bold text-slate-800 mb-4">Herramientas de Desarrollo</h2>
+        <div className="flex gap-4">
+          <Button onClick={async () => {
+            try {
+              const res = await distributeCarsForTesting()
+              if (res.success) alert(res.message)
+              else alert("Error: " + res.message)
+              window.location.reload()
+            } catch (e) {
+              console.error(e)
+              alert("Error distributed cars")
+            }
+          }}>
+            Repartir 20 Coches (Test A/B)
+          </Button>
+        </div>
+      </div>
+    </div >
   );
 }
 

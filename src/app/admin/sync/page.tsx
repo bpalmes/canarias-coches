@@ -5,6 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { RefreshCw, CheckCircle, AlertTriangle, Trash2, Database, Info, Eye, EyeOff } from "lucide-react";
 import { useState } from "react";
 import DatabaseViewer from "@/components/DatabaseViewer";
+import { distributeCarsForTesting, resetTestState, deleteAllCars } from '@/app/actions/testing';
 
 interface SyncResult {
   successful: Array<{ sku: string; name: string; action: 'created' | 'updated'; details: string }>;
@@ -47,7 +48,7 @@ export default function SyncPage() {
     setFeedback(null);
     setSyncProgress({ current: 0, total: 0, isRunning: true });
     setBatchResults([]);
-    
+
     try {
       let offset = 0;
       let total = 0;
@@ -56,7 +57,7 @@ export default function SyncPage() {
       let totalMarkedAsSold = 0;
       let totalSkipped = 0;
       let totalErrors = 0;
-      
+
       // Primer lote para obtener el total y hacer limpieza
       const firstResponse = await fetch('/api/cars/sync', {
         method: 'POST',
@@ -69,11 +70,11 @@ export default function SyncPage() {
           cleanupMode: cleanupMode
         }),
       });
-      
+
       if (!firstResponse.ok) {
         throw new Error('Error en el primer lote de sincronización');
       }
-      
+
       const firstResult = await firstResponse.json();
       total = firstResult.total;
       totalCreated += firstResult.createdCount || 0;
@@ -81,7 +82,7 @@ export default function SyncPage() {
       totalMarkedAsSold += firstResult.markedAsSold || 0;
       totalSkipped += firstResult.skippedCount || 0;
       totalErrors += firstResult.errorCount || 0;
-      
+
       // Guardar resultado del primer lote
       setBatchResults(prev => [...prev, {
         offset: 0,
@@ -92,9 +93,9 @@ export default function SyncPage() {
         results: firstResult.results,
         batchDetails: firstResult.batchDetails
       }]);
-      
+
       setSyncProgress({ current: 50, total, isRunning: true });
-      
+
       // Procesar lotes restantes automáticamente
       offset = 50;
       while (offset < total) {
@@ -109,17 +110,17 @@ export default function SyncPage() {
             cleanupMode: false // Solo limpieza en el primer lote
           }),
         });
-        
+
         if (!response.ok) {
           throw new Error(`Error en lote ${Math.floor(offset / 50) + 1}`);
         }
-        
+
         const result = await response.json();
         totalCreated += result.createdCount || 0;
         totalUpdated += result.updatedCount || 0;
         totalSkipped += result.skippedCount || 0;
         totalErrors += result.errorCount || 0;
-        
+
         // Guardar resultado del lote
         setBatchResults(prev => [...prev, {
           offset,
@@ -130,34 +131,34 @@ export default function SyncPage() {
           results: result.results,
           batchDetails: result.batchDetails
         }]);
-        
+
         offset += 50;
         setSyncProgress({ current: Math.min(offset, total), total, isRunning: true });
-        
+
         // Pequeña pausa para no sobrecargar el servidor
         await new Promise(resolve => setTimeout(resolve, 100));
       }
-      
+
       setSyncProgress({ current: total, total, isRunning: false });
-      
+
       let finalMessage = `Sincronización completada. Total: ${total} coches. ` +
-                        `Creados: ${totalCreated}, Actualizados: ${totalUpdated}`;
-      
+        `Creados: ${totalCreated}, Actualizados: ${totalUpdated}`;
+
       if (totalSkipped > 0) {
         finalMessage += `, Omitidos: ${totalSkipped}`;
       }
-      
+
       if (totalErrors > 0) {
         finalMessage += `, Errores: ${totalErrors}`;
       }
-      
+
       if (totalMarkedAsSold > 0) {
         finalMessage += `, Marcados como vendidos: ${totalMarkedAsSold}`;
       }
-      
+
       setFeedback({ message: finalMessage, type: 'success' });
       setViewerKey(prevKey => prevKey + 1); // Refresh the viewer
-      
+
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Un error desconocido ocurrió.';
       setFeedback({ message: errorMessage, type: 'error' });
@@ -252,13 +253,13 @@ export default function SyncPage() {
           <p className="text-sm text-gray-600">
             Antes de sincronizar, es necesario actualizar los coches existentes para marcarlos correctamente según su origen.
           </p>
-          
+
           <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
             <p className="text-sm text-yellow-800">
               <strong>Importante:</strong> Este paso solo es necesario la primera vez después de la actualización. Marca todos los coches existentes como provenientes del feed.
             </p>
           </div>
-          
+
           <Button onClick={handleUpdateSource} disabled={isUpdatingSource} variant="outline">
             <Database className={`mr-2 h-4 w-4 ${isUpdatingSource ? 'animate-spin' : ''}`} />
             {isUpdatingSource ? 'Actualizando...' : 'Actualizar Origen de Coches Existentes'}
@@ -277,18 +278,18 @@ export default function SyncPage() {
           <p className="text-sm text-gray-600">
             Haz clic en el botón para iniciar el proceso de sincronización. El sistema se conectará al feed de datos, leerá todos los coches y actualizará la base de datos local. Este proceso puede tardar varios minutos.
           </p>
-          
+
           <div className="flex items-center space-x-2">
-            <Checkbox 
-              id="cleanupMode" 
-              checked={cleanupMode} 
+            <Checkbox
+              id="cleanupMode"
+              checked={cleanupMode}
               onCheckedChange={(checked) => setCleanupMode(checked as boolean)}
             />
             <label htmlFor="cleanupMode" className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70">
               Limpieza automática (marcar como vendidos los coches que ya no están en el feed)
             </label>
           </div>
-          
+
           <div className="bg-blue-50 border border-blue-200 rounded-md p-3">
             <p className="text-sm text-blue-800">
               <strong>Limpieza automática:</strong> Cuando está activada, el sistema automáticamente marca como vendidos todos los coches que ya no aparecen en el feed. Esto mantiene tu inventario sincronizado con la realidad del feed.
@@ -303,7 +304,7 @@ export default function SyncPage() {
                 <span>{syncProgress.current} de {syncProgress.total} coches</span>
               </div>
               <div className="w-full bg-gray-200 rounded-full h-2">
-                <div 
+                <div
                   className="bg-blue-600 h-2 rounded-full transition-all duration-300"
                   style={{ width: `${(syncProgress.current / syncProgress.total) * 100}%` }}
                 ></div>
@@ -328,7 +329,7 @@ export default function SyncPage() {
                   {showBatchDetails ? 'Ocultar Detalles' : 'Ver Detalles'}
                 </Button>
               </div>
-              
+
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                 {batchResults.map((batch, index) => (
                   <Card key={index} className="p-4">
@@ -367,7 +368,7 @@ export default function SyncPage() {
                       <h4 className="font-medium mb-3">
                         Detalles del Lote {index + 1} (Coches {batch.batchDetails.startIndex}-{batch.batchDetails.endIndex})
                       </h4>
-                      
+
                       {/* Coches procesados exitosamente */}
                       {batch.results.successful.length > 0 && (
                         <div className="mb-4">
@@ -421,7 +422,7 @@ export default function SyncPage() {
               )}
             </div>
           )}
-          
+
           <Button onClick={handleSync} disabled={isLoading} size="lg">
             <RefreshCw className={`mr-2 h-5 w-5 ${isLoading ? 'animate-spin' : ''}`} />
             {isLoading ? 'Sincronizando...' : 'Iniciar Sincronización Completa'}
@@ -437,6 +438,71 @@ export default function SyncPage() {
         )}
       </Card>
 
+      {/* Development Tools - Moved here as requested */}
+      <Card className="bg-slate-50 border-slate-200">
+        <CardHeader>
+          <CardTitle className="text-slate-800">Herramientas de Desarrollo</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex flex-wrap gap-4">
+            <Button onClick={async () => {
+              if (!confirm("¿Estás seguro? Esto asignará ~20 coches aleatorios a los dealers 'Test A' y 'Test B'. Serán PRIVADOS (no B2B).")) return;
+              try {
+                const res = await distributeCarsForTesting()
+                if (res.success) {
+                  alert(res.message)
+                  setViewerKey(p => p + 1)
+                }
+                else alert("Error: " + res.message)
+              } catch (e) {
+                console.error(e)
+                alert("Error distributing cars")
+              }
+            }}>
+              Repartir 20 Coches (Test A/B)
+            </Button>
+
+            <Button variant="outline" onClick={async () => {
+              if (!confirm("¿Limpiar estado de pruebas? Esto devolverá los coches de Test A/B a 'Demo Autos' y borrará solicitudes B2B.")) return;
+              try {
+                const res = await resetTestState()
+                if (res.success) {
+                  alert(res.message)
+                  setViewerKey(p => p + 1)
+                } else {
+                  alert("Error: " + res.message)
+                }
+              } catch (e) {
+                console.error(e)
+                alert("Error resetting state")
+              }
+            }}>
+              Limpiar / Resetear Pruebas
+            </Button>
+
+            <Button variant="destructive" onClick={async () => {
+              if (!confirm("⚠️ PELIGRO: ¿Estás seguro de que quieres BORRAR TODOS LOS COCHES de la base de datos? Esto no se puede deshacer.")) return;
+              if (!confirm("Confirma por segunda vez: SE BORRARÁ TODO EL INVENTARIO.")) return;
+
+              try {
+                const res = await deleteAllCars()
+                if (res.success) {
+                  alert(res.message)
+                  setViewerKey(p => p + 1)
+                } else {
+                  alert("Error: " + res.message)
+                }
+              } catch (e) {
+                console.error(e)
+                alert("Error deleting all cars")
+              }
+            }}>
+              🗑️ BORRAR TODOS LOS COCHES (Nuclear)
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
       <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -448,7 +514,7 @@ export default function SyncPage() {
           <p className="text-sm text-gray-600">
             Los coches marcados como vendidos durante la sincronización se pueden gestionar desde aquí. Puedes eliminarlos manualmente si es necesario o mantenerlos para historial.
           </p>
-          
+
           <div className="bg-yellow-50 border border-yellow-200 rounded-md p-3">
             <p className="text-sm text-yellow-800">
               <strong>Nota:</strong> Los coches vendidos no aparecen en las búsquedas normales pero se mantienen en la base de datos para auditoría y posibles recuperaciones.
@@ -460,12 +526,12 @@ export default function SyncPage() {
               <Info className="mr-2 h-4 w-4" />
               Contar Coches Vendidos
             </Button>
-            
+
             {soldCount !== null && (
               <div className="flex items-center gap-2">
                 <span className="text-sm font-medium">Coches vendidos: {soldCount}</span>
-                <Button 
-                  onClick={handleCleanupSold} 
+                <Button
+                  onClick={handleCleanupSold}
                   disabled={isCleaningUp || soldCount === 0}
                   variant="destructive"
                   size="sm"
@@ -480,6 +546,51 @@ export default function SyncPage() {
       </Card>
 
       <DatabaseViewer refreshKey={viewerKey} />
+
+      {/* Development Tools */}
+      <Card className="bg-slate-50 border-slate-200">
+        <CardHeader>
+          <CardTitle className="text-slate-800">Herramientas de Desarrollo</CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="flex gap-4">
+            <Button onClick={async () => {
+              if (!confirm("¿Estás seguro? Esto asignará ~20 coches aleatorios a los dealers 'Test A' y 'Test B'. Serán PRIVADOS (no B2B).")) return;
+              try {
+                const res = await distributeCarsForTesting()
+                if (res.success) {
+                  alert(res.message)
+                  setViewerKey(p => p + 1) // Refresh database viewer
+                }
+                else alert("Error: " + res.message)
+              } catch (e) {
+                console.error(e)
+                alert("Error distruting cars")
+              }
+            }}>
+              Repartir 20 Coches (Test A/B)
+            </Button>
+
+            <Button variant="destructive" onClick={async () => {
+              if (!confirm("¿Limpiar estado de pruebas? Esto devolverá los coches de Test A/B a 'Demo Autos' y borrará solicitudes B2B.")) return;
+              try {
+                const res = await resetTestState()
+                if (res.success) {
+                  alert(res.message)
+                  setViewerKey(p => p + 1)
+                } else {
+                  alert("Error: " + res.message)
+                }
+              } catch (e) {
+                console.error(e)
+                alert("Error resetting state")
+              }
+            }}>
+              Limpiar / Resetear Pruebas
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 } 

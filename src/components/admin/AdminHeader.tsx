@@ -11,6 +11,12 @@ import {
     ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { DealershipSwitcher } from "./DealershipSwitcher";
+
+interface AdminHeaderProps {
+    impersonatedId?: number
+    isSuperAdmin?: boolean
+}
 
 function useClickOutside(ref: any, handler: () => void) {
     useEffect(() => {
@@ -29,7 +35,7 @@ function useClickOutside(ref: any, handler: () => void) {
     }, [ref, handler]);
 }
 
-export default function AdminHeader() {
+export default function AdminHeader({ impersonatedId, isSuperAdmin }: AdminHeaderProps) {
     const { data: session } = useSession();
 
     const [isWebOpen, setIsWebOpen] = useState(false);
@@ -90,6 +96,9 @@ export default function AdminHeader() {
 
             {/* Right: User Menu */}
             <div className="flex items-center space-x-4">
+                {isSuperAdmin && (
+                    <DealershipSwitcher currentImpersonatedId={impersonatedId} />
+                )}
                 <span className="text-sm text-gray-600 hidden md:inline-block">
                     {session?.user?.name || session?.user?.email}
                 </span>

@@ -71,6 +71,10 @@ model Dealership {
   leads Lead[]
   financingConditions FinancingCondition[]
   financingRequests FinancingRequest[]
+  
+  // B2B Relations
+  b2bSales    B2BRequest[] @relation("B2BSeller")
+  b2bPurchases B2BRequest[] @relation("B2BBuyer")
 }
 
 model User {
@@ -187,6 +191,7 @@ model Car {
   leads  Lead[]
   offers Offer[] @relation("CarToOffer")
   financingRequests FinancingRequest[]
+  b2bRequests B2BRequest[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -326,4 +331,25 @@ model GalleryImage {
   updatedAt   DateTime @updatedAt
 
   @@map("gallery_images")
+}
+
+model B2BRequest {
+  id        String   @id @default(cuid())
+  
+  // The Seller (Owner of the car)
+  sellerId  Int
+  seller    Dealership @relation("B2BSeller", fields: [sellerId], references: [id])
+
+  // The Buyer (Dealership requesting)
+  buyerId   Int
+  buyer     Dealership @relation("B2BBuyer", fields: [buyerId], references: [id])
+
+  // The Car
+  carId     Int
+  car       Car      @relation(fields: [carId], references: [id])
+
+  status    String   @default("PENDING") // PENDING, ACCEPTED, REJECTED
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }

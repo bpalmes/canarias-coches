@@ -172,7 +172,8 @@ export class CarService {
         status?: string,
         query?: string,
         page?: number,
-        limit?: number
+        limit?: number,
+        isB2BAvailable?: boolean
     }) {
         const page = params.page || 1
         const limit = params.limit || 20
@@ -182,6 +183,10 @@ export class CarService {
 
         if (params.dealershipId) {
             where.dealershipId = params.dealershipId
+        }
+
+        if (params.isB2BAvailable !== undefined) {
+            where.isB2BAvailable = params.isB2BAvailable
         }
 
         if (params.status) {

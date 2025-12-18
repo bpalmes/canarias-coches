@@ -3,36 +3,38 @@ import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { CarService } from "@/services/car-service"
 import { redirect } from "next/navigation"
 import Link from "next/link"
+import { getActiveDealershipId } from "@/lib/auth-helpers"
 
 export default async function AdminInventoryPage({
     searchParams,
 }: {
-    searchParams: { [key: string]: string | string[] | undefined }
+    searchParams: Promise<{ [key: string]: string | string[] | undefined }>
 }) {
     const session = await getServerSession(authOptions)
+    const resolvedSearchParams = await searchParams
 
     if (!session || !session.user.dealershipId) {
-        redirect('/login')
+        // Allow Super Admin to pass through even without dealershipId
+        if (session?.user?.role !== 'SUPER_ADMIN') {
+            redirect('/login')
+        }
     }
 
     const carService = new CarService()
 
-    const page = typeof searchParams.page === 'string' ? parseInt(searchParams.page) : 1
-    const search = typeof searchParams.q === 'string' ? searchParams.q : undefined
-    const status = typeof searchParams.status === 'string' ? searchParams.status : undefined
+    const page = typeof resolvedSearchParams.page === 'string' ? parseInt(resolvedSearchParams.page) : 1
+    const search = typeof resolvedSearchParams.q === 'string' ? resolvedSearchParams.q : undefined
+    const status = typeof resolvedSearchParams.status === 'string' ? resolvedSearchParams.status : undefined
 
-    // Super Admin can filter by dealership, but defaults to all.
-    // Dealers are forced to their own ID.
-    const dealershipId = session.user.role === 'SUPER_ADMIN'
-        ? undefined // TODO: read from filters if super admin selects one
-        : session.user.dealershipId
+    // Use helper to support impersonation
+    const dealershipId = await getActiveDealershipId(session)
 
     const result = await carService.getAdminInventory({
         page,
         limit: 20,
         query: search,
         status: status,
-        dealershipId: session.user.role === 'SUPER_ADMIN' ? undefined : session.user.dealershipId
+        dealershipId
     })
 
     // @ts-ignore
