@@ -6,7 +6,8 @@ import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Checkbox } from "@/components/ui/checkbox"
-import { calculateFinancialOptions, CalculationResult } from '@/actions/financial-calculator'
+// Import the new action
+import { calculateFinancialOptions, CalculatorResponse } from '@/actions/calculate-financial'
 
 interface FinancialCalculatorProps {
     interestRates: { id: number, name: string, value: number }[]
@@ -15,35 +16,69 @@ interface FinancialCalculatorProps {
 
 export function FinancialCalculator({ interestRates, loanTerms }: FinancialCalculatorProps) {
     const [isPending, startTransition] = useTransition()
-    const [result, setResult] = useState<CalculationResult | null>(null)
+
+    const [results, setResults] = useState<CalculatorResponse | null>(null)
+    const [error, setError] = useState<string | null>(null)
 
     // Form State
     const [date, setDate] = useState<string>(new Date().toISOString().split('T')[0])
-    const [price, setPrice] = useState<number>(15000)
 
     // Financiado
-    const [financedRateId, setFinancedRateId] = useState<string>("")
-    const [financedTermId, setFinancedTermId] = useState<string>("")
+    const [price, setPrice] = useState<number>(15000)
+    const [rateId, setRateId] = useState<string>("")
+    const [termId, setTermId] = useState<string>("")
 
     // Contado
-    const [contadoPrice, setContadoPrice] = useState<number>(15000)
+    const [contadoPrice, setContadoPrice] = useState<number>(16000)
 
     // Options
     const [noInsurance, setNoInsurance] = useState<boolean>(false)
-    const [warranty, setWarranty] = useState<string>("no_warranty")
+    const [warranty, setWarranty] = useState<string>("0") // "0" cost
 
     const handleCalculate = () => {
+        setError(null)
+        setResults(null)
+
+        // Find selected rate and term values
+        const rateObj = interestRates.find(r => r.id.toString() === rateId)
+        const termObj = loanTerms.find(t => t.id.toString() === termId)
+
+        if (!rateObj || !termObj) {
+            setError("Por favor seleccione Interés y Plazo")
+            return
+        }
+
         startTransition(async () => {
             const res = await calculateFinancialOptions({
-                registrationDate: new Date(date),
-                price: price,
-                financedAmount: price,
-                interestRateId: (financedRateId && financedRateId !== "all") ? parseInt(financedRateId) : undefined,
-                termId: (financedTermId && financedTermId !== "all") ? parseInt(financedTermId) : undefined,
-                availableInsurance: !noInsurance
+                registrationDate: date,
+                loanAmount: price,
+                loanRate: rateObj.value,
+                loanTerm: termObj.months,
+                wholePrice: contadoPrice,
+                wholeRate: rateObj.value,
+                guarantee: parseFloat(warranty),
+                sinSeguro: noInsurance
             })
-            setResult(res)
+
+            if (res.success && res.data) {
+                setResults(res.data)
+            } else {
+                setError(res.message || "Error al calcular.")
+            }
         })
+    }
+
+    // Helper for gradient badges
+    const getBadgeStyle = (index: number, total: number) => {
+        if (total <= 1) return { backgroundColor: 'hsl(120, 85%, 48%)', color: 'white' }
+        const percentage = index / (total - 1)
+        const hue = 120 - (percentage * 100)
+        const saturation = 85 - (percentage * 15)
+        const lightness = 48 + (percentage * 2)
+        return {
+            backgroundColor: `hsl(${hue}, ${saturation}%, ${lightness}%)`,
+            color: 'white'
+        }
     }
 
     return (
@@ -72,7 +107,7 @@ export function FinancialCalculator({ interestRates, loanTerms }: FinancialCalcu
                         <h3 className="mb-4 text-sm font-semibold text-gray-900 border-b pb-2">Financiado</h3>
                         <div className="space-y-4">
                             <div className="space-y-2">
-                                <Label>Precio</Label>
+                                <Label>Precio a Financiar</Label>
                                 <div className="flex">
                                     <Input
                                         type="number"
@@ -85,12 +120,11 @@ export function FinancialCalculator({ interestRates, loanTerms }: FinancialCalcu
                             </div>
                             <div className="space-y-2">
                                 <Label>Interés</Label>
-                                <Select value={financedRateId} onValueChange={setFinancedRateId}>
+                                <Select value={rateId} onValueChange={setRateId}>
                                     <SelectTrigger className="bg-indigo-900 text-white border-indigo-900">
                                         <SelectValue placeholder="Seleccionar tipo" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="all">Cualquiera</SelectItem>
                                         {interestRates.map(rate => (
                                             <SelectItem key={rate.id} value={rate.id.toString()}>{rate.name}</SelectItem>
                                         ))}
@@ -99,12 +133,11 @@ export function FinancialCalculator({ interestRates, loanTerms }: FinancialCalcu
                             </div>
                             <div className="space-y-2">
                                 <Label>Plazo</Label>
-                                <Select value={financedTermId} onValueChange={setFinancedTermId}>
+                                <Select value={termId} onValueChange={setTermId}>
                                     <SelectTrigger className="bg-indigo-900 text-white border-indigo-900">
                                         <SelectValue placeholder="Seleccionar meses" />
                                     </SelectTrigger>
                                     <SelectContent>
-                                        <SelectItem value="all">Cualquiera</SelectItem>
                                         {loanTerms.map(term => (
                                             <SelectItem key={term.id} value={term.id.toString()}>{term.name}</SelectItem>
                                         ))}
@@ -115,11 +148,11 @@ export function FinancialCalculator({ interestRates, loanTerms }: FinancialCalcu
                     </div>
 
                     {/* 3. Contado Configuration */}
-                    <div className="rounded-lg border bg-white p-4 shadow-sm opacity-70">
+                    <div className="rounded-lg border bg-white p-4 shadow-sm opacity-90">
                         <h3 className="mb-4 text-sm font-semibold text-gray-900 border-b pb-2">Al Contado</h3>
                         <div className="space-y-4">
                             <div className="space-y-2">
-                                <Label>Precio</Label>
+                                <Label>Precio al Contado</Label>
                                 <div className="flex">
                                     <Input
                                         type="number"
@@ -131,10 +164,10 @@ export function FinancialCalculator({ interestRates, loanTerms }: FinancialCalcu
                                 </div>
                             </div>
                             <div className="space-y-2">
-                                <Label>Interés</Label>
-                                <Select disabled>
-                                    <SelectTrigger className="bg-indigo-900 text-white border-indigo-900">
-                                        <SelectValue placeholder="Seleccionar tipo" />
+                                <Label>Interés (Contado)</Label>
+                                <Select disabled value={rateId}>
+                                    <SelectTrigger className="bg-indigo-900 text-white border-indigo-900 opacity-50">
+                                        <SelectValue placeholder={rateId ? interestRates.find(r => r.id.toString() === rateId)?.name : "Igual que financiado"} />
                                     </SelectTrigger>
                                 </Select>
                             </div>
@@ -151,8 +184,9 @@ export function FinancialCalculator({ interestRates, loanTerms }: FinancialCalcu
                                 <SelectValue placeholder="Sin garantía" />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="no_warranty">Sin garantía</SelectItem>
-                                <SelectItem value="extended">Garantía Extendida (+300€)</SelectItem>
+                                <SelectItem value="0">Sin garantía</SelectItem>
+                                <SelectItem value="300">Garantía Extendida (+300€)</SelectItem>
+                                <SelectItem value="500">Garantía Premium (+500€)</SelectItem>
                             </SelectContent>
                         </Select>
                     </div>
@@ -179,13 +213,19 @@ export function FinancialCalculator({ interestRates, loanTerms }: FinancialCalcu
                     {isPending ? 'CALCULANDO...' : 'CALCULAR'}
                 </Button>
 
+                {error && (
+                    <div className="p-4 bg-red-50 text-red-600 rounded-md text-center">
+                        {error}
+                    </div>
+                )}
+
                 {/* 5. Results */}
-                {result && (
+                {results && (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mt-4">
                         {/* Financiado Results */}
                         <div className="rounded-lg border bg-white shadow-sm p-4">
                             <h3 className="mb-4 text-md font-bold text-gray-900">Financiado (V2)</h3>
-                            {result.financiado.length === 0 ? (
+                            {results.financiado.length === 0 ? (
                                 <p className="text-center text-gray-500 py-8">No hay opciones disponibles.</p>
                             ) : (
                                 <table className="w-full text-sm">
@@ -195,21 +235,26 @@ export function FinancialCalculator({ interestRates, loanTerms }: FinancialCalcu
                                             <th className="pb-2 text-left">Banco</th>
                                             <th className="pb-2 text-right">Cuota</th>
                                             <th className="pb-2 text-right">Código</th>
+                                            {noInsurance && <th className="pb-2 text-right text-xs">Cuota SS</th>}
+                                            {noInsurance && <th className="pb-2 text-right text-xs">Código SS</th>}
                                         </tr>
                                     </thead>
                                     <tbody className="divide-y">
-                                        {result.financiado.map((opt, i) => (
-                                            <tr key={`${opt.entityId}-${opt.interestRate}-${i}`} className="hover:bg-gray-50">
+                                        {results.financiado.map((opt, i) => (
+                                            <tr key={`${opt.bank_name}-${i}`} className="hover:bg-gray-50">
                                                 <td className="py-3 text-center">
-                                                    <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white
-                                                        ${i === 0 ? 'bg-green-500' : i === 1 ? 'bg-green-400' : i === 2 ? 'bg-yellow-400' : 'bg-yellow-600'}
-                                                    `}>
+                                                    <div
+                                                        className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mx-auto"
+                                                        style={getBadgeStyle(i, results.financiado.length)}
+                                                    >
                                                         {i + 1}
-                                                    </span>
+                                                    </div>
                                                 </td>
-                                                <td className="py-3 font-medium text-gray-900">{opt.entityName}</td>
-                                                <td className="py-3 text-right font-bold text-gray-900">{opt.monthlyPayment.toFixed(2)} €</td>
-                                                <td className="py-3 text-right text-gray-500 font-mono text-xs">{opt.code}</td>
+                                                <td className="py-3 font-medium text-gray-900">{opt.bank_name}</td>
+                                                <td className="py-3 text-right font-bold text-gray-900">{opt.coef_fee} €</td>
+                                                <td className="py-3 text-right text-gray-500 font-mono text-xs">{opt.coef_ref}</td>
+                                                {noInsurance && <td className="py-3 text-right text-gray-400 font-mono text-xs">{opt.coef_fee_ss} €</td>}
+                                                {noInsurance && <td className="py-3 text-right text-gray-400 font-mono text-xs">{opt.coef_ref_ss}</td>}
                                             </tr>
                                         ))}
                                     </tbody>
@@ -220,9 +265,37 @@ export function FinancialCalculator({ interestRates, loanTerms }: FinancialCalcu
                         {/* Contado Results */}
                         <div className="rounded-lg border bg-white shadow-sm p-4">
                             <h3 className="mb-4 text-md font-bold text-gray-900">Al Contado (V2)</h3>
-                            <div className="flex flex-col items-center justify-center h-40 text-gray-500">
-                                <p>No hay datos disponibles.</p>
-                            </div>
+                            {results.contado.length === 0 ? (
+                                <p className="text-center text-gray-500 py-8">No hay datos disponibles.</p>
+                            ) : (
+                                <table className="w-full text-sm">
+                                    <thead>
+                                        <tr className="text-gray-500 border-b">
+                                            <th className="pb-2 text-center">In</th>
+                                            <th className="pb-2 text-left">Banco</th>
+                                            <th className="pb-2 text-right">Cuota/Rent.</th>
+                                            <th className="pb-2 text-right">Código</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y">
+                                        {results.contado.map((opt, i) => (
+                                            <tr key={`${opt.bank_name}-${i}`} className="hover:bg-gray-50">
+                                                <td className="py-3 text-center">
+                                                    <div
+                                                        className="w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold mx-auto"
+                                                        style={getBadgeStyle(i, results.contado.length)}
+                                                    >
+                                                        {i + 1}
+                                                    </div>
+                                                </td>
+                                                <td className="py-3 font-medium text-gray-900">{opt.bank_name}</td>
+                                                <td className="py-3 text-right font-bold text-gray-900">{opt.cont_fee} €</td>
+                                                <td className="py-3 text-right text-gray-500 font-mono text-xs">{opt.cont_ref}</td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            )}
                         </div>
                     </div>
                 )}
