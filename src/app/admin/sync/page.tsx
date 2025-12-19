@@ -28,6 +28,7 @@ interface BatchResult {
 }
 
 export default function SyncPage() {
+  console.log("SyncPage mounted");
   const [isLoading, setIsLoading] = useState(false);
   const [isUpdatingSource, setIsUpdatingSource] = useState(false);
   const [isCleaningUp, setIsCleaningUp] = useState(false);

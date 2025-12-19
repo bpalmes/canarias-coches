@@ -143,6 +143,113 @@ async function main() {
     console.log(`✅ Seeded ${brand.name} with ${brand.models.length} models`)
   }
 
+
+  console.log('✅ Seeded dealership data.')
+
+  // -----------------------------------------------------
+  // 4. Seed Financial Calculator Data
+  // -----------------------------------------------------
+
+  // A. Financial Entities
+  const financialEntities = [
+    { name: 'Santander Consumer Finance', code: 'SANTANDER', logo: 'https://logo.clearbit.com/santanderconsumer.es' },
+    { name: 'BBVA Consumer Finance', code: 'BBVA', logo: 'https://logo.clearbit.com/bbva.es' },
+    { name: 'CaixaBank Consumer Finance', code: 'CAIXABANK', logo: 'https://logo.clearbit.com/caixabank.es' },
+    { name: 'Cetelem BNP Paribas', code: 'CETELEM', logo: 'https://logo.clearbit.com/cetelem.es' },
+    { name: 'Lendrock Finance', code: 'LENDROCK', logo: 'https://logo.clearbit.com/lendrock.com' },
+    { name: 'Sofinco', code: 'SOFINCO', logo: 'https://logo.clearbit.com/sofinco.es' },
+    { name: 'Confia Finance', code: 'CONFIA', logo: null },
+  ]
+
+  for (const entity of financialEntities) {
+    await prisma.financialEntity.upsert({
+      where: { id: financialEntities.indexOf(entity) + 1 }, // Assuming ID sequence matches order for seed consistency
+      update: {},
+      create: {
+        name: entity.name,
+        code: entity.code,
+        logo: entity.logo,
+        isActive: true,
+      },
+    })
+  }
+  console.log(`✅ Seeded ${financialEntities.length} Financial Entities`)
+
+  // B. Interest Rates
+  const interestRates = [
+    { name: '4.99%', value: 4.99 },
+    { name: '5.99%', value: 5.99 },
+    { name: '6.99%', value: 6.99 },
+    { name: '7.49%', value: 7.49 },
+    { name: '7.99%', value: 7.99 },
+    { name: '8.49%', value: 8.49 },
+    { name: '8.99%', value: 8.99 },
+    { name: '9.49%', value: 9.49 },
+    { name: '9.99%', value: 9.99 },
+    { name: '10.99%', value: 10.99 },
+    { name: '11.99%', value: 11.99 },
+  ]
+
+  for (const rate of interestRates) {
+    await prisma.financialInterestRate.upsert({
+      where: { id: interestRates.indexOf(rate) + 1 },
+      update: {},
+      create: {
+        name: rate.name,
+        value: rate.value,
+        isActive: true,
+      },
+    })
+  }
+  console.log(`✅ Seeded ${interestRates.length} Interest Rates`)
+
+  // C. Loan Terms
+  const loanTerms = [
+    { name: '24 meses', months: 24 },
+    { name: '36 meses', months: 36 },
+    { name: '48 meses', months: 48 },
+    { name: '60 meses', months: 60 },
+    { name: '72 meses', months: 72 },
+    { name: '84 meses', months: 84 },
+    { name: '96 meses', months: 96 },
+    { name: '108 meses', months: 108 },
+    { name: '120 meses', months: 120 },
+  ]
+
+  for (const term of loanTerms) {
+    await prisma.financialLoanTerm.upsert({
+      where: { durationMonths: term.months },
+      update: {},
+      create: {
+        name: term.name,
+        durationMonths: term.months,
+        isActive: true,
+      },
+    })
+  }
+  console.log(`✅ Seeded ${loanTerms.length} Loan Terms`)
+
+  // D. Campaigns
+  const campaigns = [
+    { name: 'Vehículos Nuevos', code: 'vn', minAge: 0, maxAge: 12 },
+    { name: 'Vehículos Ocasión', code: 'vo', minAge: 13, maxAge: null },
+  ]
+
+  for (const campaign of campaigns) {
+    await prisma.financialCampaign.upsert({
+      where: { code: campaign.code },
+      update: {},
+      create: {
+        name: campaign.name,
+        code: campaign.code,
+        minVehiculoAgeMonths: campaign.minAge,
+        maxVehiculoAgeMonths: campaign.maxAge,
+        isActive: true,
+      },
+    })
+  }
+  console.log(`✅ Seeded ${campaigns.length} Campaigns`)
+
   console.log('✅ Seeding finished.')
 }
 

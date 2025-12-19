@@ -9,7 +9,7 @@ export default withAuth({
       // Admin routes require role check if needed
       if (req.nextUrl.pathname.startsWith('/admin')) {
         // Allow SUPER_ADMIN and DEALERSHIP_ADMIN
-        return token.role === 'SUPER_ADMIN' || token.role === 'DEALERSHIP_ADMIN'
+        return ['SUPER_ADMIN', 'DEALERSHIP_ADMIN', 'ADMIN'].includes(token.role as string)
       }
 
       return true

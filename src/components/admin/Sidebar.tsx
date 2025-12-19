@@ -4,37 +4,43 @@ import Link from 'next/link';
 import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
-import { LayoutDashboard, List, RefreshCw, Images, Users, Camera, BadgeEuro, Briefcase, CarFront } from 'lucide-react';
+import { LayoutDashboard, List, RefreshCw, Images, Users, Camera, BadgeEuro, Briefcase, CarFront, Calculator } from 'lucide-react';
 
-const menuGroups = [
-  {
-    title: 'General',
-    items: [
-      { href: '/admin', label: 'Panel de control', icon: LayoutDashboard },
-    ]
-  },
-  {
-    title: 'Inventario',
-    items: [
-      { href: '/admin/inventory', label: 'Gestor de Inventario', icon: CarFront },
-      { href: '/admin/sync', label: 'Sincronizar Feed', icon: RefreshCw },
-      { href: '/admin/manage-offers', label: 'Gestionar Ofertas', icon: List },
-      { href: '/admin/manage-photos', label: 'Gestionar Fotos', icon: Images },
-      { href: '/admin/gallery', label: 'Galería de Entregas', icon: Camera },
-    ]
-  },
-  {
-    title: 'Gestión',
-    items: [
-      { href: '/admin/leads', label: 'Gestión de Leads', icon: Users },
-      { href: '/admin/financing', label: 'Financiación', icon: BadgeEuro },
-      { href: '/admin/b2b/market', label: 'Mercado B2B', icon: Briefcase },
-    ]
-  }
-];
+interface SidebarProps {
+  isSuperAdmin?: boolean
+}
 
-export default function Sidebar() {
+export default function Sidebar({ isSuperAdmin }: SidebarProps) {
   const pathname = usePathname();
+
+  const menuGroups = [
+    {
+      title: 'General',
+      items: [
+        { href: '/admin', label: 'Panel de control', icon: LayoutDashboard },
+      ]
+    },
+    {
+      title: 'Inventario',
+      items: [
+        { href: '/admin/inventory', label: 'Gestor de Inventario', icon: CarFront },
+        // Conditionally add Calculator
+        ...(isSuperAdmin ? [{ href: '/admin/calculator', label: 'Calculadora Financiera', icon: Calculator }] : []),
+        { href: '/admin/sync', label: 'Sincronizar Feed', icon: RefreshCw },
+        { href: '/admin/manage-offers', label: 'Gestionar Ofertas', icon: List },
+        { href: '/admin/manage-photos', label: 'Gestionar Fotos', icon: Images },
+        { href: '/admin/gallery', label: 'Galería de Entregas', icon: Camera },
+      ]
+    },
+    {
+      title: 'Gestión',
+      items: [
+        { href: '/admin/leads', label: 'Gestión de Leads', icon: Users },
+        { href: '/admin/financing', label: 'Financiación', icon: BadgeEuro },
+        { href: '/admin/b2b/market', label: 'Mercado B2B', icon: Briefcase },
+      ]
+    }
+  ];
 
   return (
     <aside className="w-64 flex-shrink-0 bg-gray-800 text-white flex flex-col h-screen overflow-y-auto">
