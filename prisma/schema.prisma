@@ -72,6 +72,17 @@ model Dealership {
   financingConditions FinancingCondition[]
   financingRequests FinancingRequest[]
   
+  // Financing Configuration
+  financingEnabled      Boolean @default(false)
+  usePlatformFinancing  Boolean @default(false)
+  
+  // Granular Financing Controls
+  enableWithInsurance    Boolean @default(true)
+  enableWithoutInsurance Boolean @default(true)
+  
+  enabledFinancialEntities FinancialEntity[]
+  enabledInterestRates     FinancialInterestRate[]
+  
   // B2B Relations
   b2bSales    B2BRequest[] @relation("B2BSeller")
   b2bPurchases B2BRequest[] @relation("B2BBuyer")
@@ -142,6 +153,8 @@ model Car {
   price               Float
   financedPrice       Float?
   monthlyFinancingFee Float?
+  financeMinInstallment Float? // Calculated minimum installment
+  financeMinInstallmentSS Float? // Calculated minimum installment (Sin Seguro)
   vatDeductible       Boolean @default(false)
 
   // Specs
@@ -372,6 +385,7 @@ model FinancialEntity {
   updatedAt      DateTime  @default(now()) @updatedAt
 
   configurations FinancialEntityConfiguration[]
+  dealerships    Dealership[]
 
   @@index([organizationId, isActive])
   @@map("financial_entities")
@@ -386,6 +400,7 @@ model FinancialInterestRate {
   updatedAt DateTime @default(now()) @updatedAt
 
   details FinancialConfigurationDetail[]
+  dealerships Dealership[]
 
   @@map("financial_interest_rates")
 }

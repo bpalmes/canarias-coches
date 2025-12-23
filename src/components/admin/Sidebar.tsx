@@ -21,24 +21,35 @@ import {
 
 interface SidebarProps {
   isSuperAdmin?: boolean
+  isImpersonating?: boolean
 }
 
-export default function Sidebar({ isSuperAdmin }: SidebarProps) {
+export default function Sidebar({ isSuperAdmin, isImpersonating }: SidebarProps) {
   const pathname = usePathname();
+
+  // Show Super Admin tools ONLY if we are truly acting as Super Admin (not simulated)
+  const showSuperAdminTools = isSuperAdmin && !isImpersonating;
 
   const menuGroups = [
     {
-      title: '', // Empty title for the first group like the design
+      title: '',
       items: [
         { href: '/admin', label: 'Panel de control', icon: LayoutDashboard },
       ]
     },
+    ...(showSuperAdminTools ? [{
+      title: 'Gestión de Compraventas',
+      items: [
+        { href: '/admin/financing-management', label: 'Gestionar Financiación', icon: BadgeEuro },
+        { href: '/admin/products-management', label: 'Gestionar Productos', icon: Briefcase },
+      ]
+    }] : []),
     {
       title: 'Inventario',
       items: [
         { href: '/admin/inventory', label: 'Gestor de Inventario', icon: CarFront },
         // Conditionally add Calculator
-        ...(isSuperAdmin ? [{ href: '/admin/calculator', label: 'Calculadora Financiera', icon: Calculator }] : []),
+        ...(showSuperAdminTools ? [{ href: '/admin/calculator', label: 'Calculadora Financiera', icon: Calculator }] : []),
         { href: '/admin/sync', label: 'Sincronizar Feed', icon: RefreshCw },
         { href: '/admin/manage-offers', label: 'Gestionar Ofertas', icon: List },
         { href: '/admin/manage-photos', label: 'Gestionar Fotos', icon: Images },

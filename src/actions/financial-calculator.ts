@@ -12,6 +12,7 @@ export interface CalculationInput {
     monthlyTerm?: number // Raw number of months
     isContado?: boolean
     availableInsurance?: boolean // "Sin Seguro" unchecked = available
+    dealershipId?: number // NEW: Context for permissions
 }
 
 export interface FinancialResultOption {
@@ -35,6 +36,37 @@ export interface CalculationResult {
  * Uses French Amortization method as backup if explicit coefficients are not found.
  */
 export async function calculateFinancialOptions(input: CalculationInput): Promise<CalculationResult> {
+    // 0. Permission Check & Config Load
+    let allowedEntityIds: number[] = []
+    let allowedRateIds: number[] = []
+
+    console.log("CALC INPUT:", input)
+
+    if (input.dealershipId) {
+        const dealership = await prisma.dealership.findUnique({
+            where: { id: input.dealershipId },
+            include: { enabledFinancialEntities: true, enabledInterestRates: true }
+        })
+
+        if (!dealership) throw new Error("Dealership not found")
+
+        // If Platform Financing is DISABLED, maybe return empty or generic?
+        // For now, if financingEnabled is false, return empty.
+        if (!dealership.financingEnabled) {
+            return { financiado: [], contado: [] }
+        }
+
+        allowedEntityIds = dealership.enabledFinancialEntities.map(e => e.id)
+        allowedRateIds = dealership.enabledInterestRates.map(r => r.id)
+
+        if (!dealership.enableWithInsurance) {
+            input.availableInsurance = false
+        }
+
+        console.log("ALLOWED ENTITIES:", allowedEntityIds)
+        console.log("ALLOWED RATES:", allowedRateIds)
+    }
+
     // 1. Determine Campaign (VN/VO)
     const now = new Date()
     const ageMonths = (now.getFullYear() - input.registrationDate.getFullYear()) * 12 +
@@ -42,15 +74,34 @@ export async function calculateFinancialOptions(input: CalculationInput): Promis
 
     const campaignCode = ageMonths <= 12 ? 'vn' : 'vo'
 
-    // 2. Load Base Data
+    // 2. Load Base Data with Filters
+    // Logic: If dealershipId is set, we MUST restrict to allowed IDs. 
+    // If allowedEntityIds is empty, we must return NO entities.
+
+    const whereEntities: any = { isActive: true }
+    if (input.dealershipId) {
+        // If the list is empty, we want to match NOTHING. 
+        // passing `id: { in: [] }` usually works in Prisma to return nothing.
+        whereEntities.id = { in: allowedEntityIds }
+    }
+
     const entities = await prisma.financialEntity.findMany({
-        where: { isActive: true },
+        where: whereEntities,
         include: { configurations: { where: { isLive: true } } }
     })
 
-    // If specific rate requested, fetch it, otherwise fetch all
+    // If specific rate requested, fetch it, otherwise fetch all (filtered by dealer)
+    const whereRates: any = { isActive: true }
+    if (input.interestRateId) {
+        whereRates.id = input.interestRateId
+    }
+    if (input.dealershipId) {
+        // Same here: strict filtering
+        whereRates.id = { in: allowedRateIds }
+    }
+
     const rates = await prisma.financialInterestRate.findMany({
-        where: { isActive: true, ...(input.interestRateId ? { id: input.interestRateId } : {}) }
+        where: whereRates
     })
 
     // If specific term requested, fetch it, otherwise fetch logical nearby terms or all

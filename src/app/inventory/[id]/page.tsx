@@ -78,7 +78,12 @@ export default async function CarDetailPage({ params }: { params: { id: string }
                             </dl>
 
                             <div className="mt-10">
-                                <FinancingCalculator price={car.price} />
+                                <FinancingCalculator
+                                    price={car.price}
+                                    dealershipId={car.dealershipId}
+                                    year={car.year}
+                                    month={car.month || 1}
+                                />
                             </div>
 
                             <div className="mt-8 border-t border-gray-200 pt-8">

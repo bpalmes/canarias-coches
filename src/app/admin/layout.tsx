@@ -13,10 +13,11 @@ export default async function AdminLayout({ children }: { children: React.ReactN
 
   // If isSuperAdmin is true, activeDealershipId will be the cookie value (impersonated ID) OR undefined.
   // If we are impersonating, activeDealershipId has a value.
+  const isImpersonating = isSuperAdmin && !!activeDealershipId
 
   return (
     <div className="h-screen bg-gray-50 flex overflow-hidden">
-      <Sidebar isSuperAdmin={isSuperAdmin} />
+      <Sidebar isSuperAdmin={isSuperAdmin} isImpersonating={isImpersonating} />
       <div className="flex-1 flex flex-col h-full overflow-hidden">
         <AdminHeader
           isSuperAdmin={isSuperAdmin}
