@@ -4,6 +4,7 @@ import { prisma } from "@/lib/prisma"
 import { getServerSession } from "next-auth/next"
 import { authOptions } from "@/app/api/auth/[...nextauth]/route"
 import { revalidatePath } from "next/cache"
+import { calculateFinancialOptions, CalculatorResponse } from "@/actions/calculate-financial"
 
 export async function getDealershipsForFinancing() {
     const session = await getServerSession(authOptions)
@@ -97,119 +98,226 @@ export async function updateDealershipFinancing(id: number, data: {
     return { success: true }
 }
 
-export async function calculateBulkInventoryFinancing(dealershipId: number) {
+export async function updateCarFinancingMode(
+    carId: number,
+    usePlatformFinancing: boolean,
+    manualQuota?: number
+) {
     const session = await getServerSession(authOptions)
-    // Check permissions: either SuperAdmin or the Dealer himself
+    if (!session?.user?.id) throw new Error("Unauthorized")
+
+    await prisma.car.update({
+        where: { id: carId },
+        data: {
+            usePlatformFinancing,
+            monthlyFinancingFee: manualQuota
+        }
+    })
+
+    revalidatePath('/admin/inventory')
+    return { success: true }
+}
+
+export async function calculateBulkInventoryFinancing(dealershipId: number, useInsurance: boolean = true) {
+    const session = await getServerSession(authOptions)
     if (!session || (!session.user.dealershipId && session.user.role !== 'SUPER_ADMIN')) {
         throw new Error("Unauthorized")
     }
-    // If dealer, must match
     if (session.user.dealershipId && session.user.dealershipId !== dealershipId) {
         throw new Error("Unauthorized (Wrong Dealership)")
     }
 
-    // 1. Fetch dealership settings
     const dealership = await prisma.dealership.findUnique({
         where: { id: dealershipId },
-        select: {
-            financingEnabled: true,
-            enableWithInsurance: true,
-            enableWithoutInsurance: true,
-            enabledFinancialEntities: { select: { id: true } },
-            enabledInterestRates: { select: { id: true } }
+        include: {
+            enabledFinancialEntities: true,
+            enabledInterestRates: true
         }
     })
 
-    if (!dealership?.financingEnabled) {
+    if (!dealership || !dealership.financingEnabled) {
         throw new Error("Financing not enabled for this dealership")
     }
 
-    const enabledEntityIds = dealership.enabledFinancialEntities.map(e => e.id)
-    const enabledRateIds = dealership.enabledInterestRates.map(r => r.id)
+    if (useInsurance && !dealership.enableWithInsurance) {
+        throw new Error("Financing with insurance not enabled for this dealership")
+    }
+    if (!useInsurance && !dealership.enableWithoutInsurance) {
+        throw new Error("Financing without insurance not enabled for this dealership")
+    }
 
-    // 2. Fetch all cars
     const cars = await prisma.car.findMany({
-        where: { dealershipId, status: 'PUBLISHED' },
+        where: {
+            dealershipId,
+            status: 'PUBLISHED',
+            usePlatformFinancing: true
+        },
         select: { id: true, price: true, year: true, month: true }
     })
 
     let updatedCount = 0
 
-    // 3. Iterate and Calculate
+    // Optimize: Pre-map enabled rates values
+    const rateValues = dealership.enabledInterestRates.map(r => Number(r.value))
+    const enabledEntityIds = new Set(dealership.enabledFinancialEntities.map(e => e.id))
+
     for (const car of cars) {
-        const regDate = new Date(car.year, (car.month || 1) - 1, 1) // Default to Jan
+        const regDate = new Date(car.year, (car.month || 1) - 1, 1)
 
-        try {
-            // Find Min Installment With Insurance
-            let bestOption = null
-            if (dealership.enableWithInsurance) {
-                bestOption = await findBestFinancingOption(car.price, regDate, true, enabledEntityIds, enabledRateIds)
-            }
+        let minInstallment = Infinity
+        let foundOption = false
 
-            // Find Min Installment Without Insurance
-            let bestOptionSS = null
-            if (dealership.enableWithoutInsurance) {
-                bestOptionSS = await findBestFinancingOption(car.price, regDate, false, enabledEntityIds, enabledRateIds)
-            }
+        // We must find the best option across ALL enabled rates for this dealer.
+        const loanTerm = 120
 
-            if (bestOption || bestOptionSS) {
-                await prisma.car.update({
-                    where: { id: car.id },
-                    data: {
-                        financeMinInstallment: bestOption?.monthlyPayment ?? null,
-                        financeMinInstallmentSS: bestOptionSS?.monthlyPayment ?? null
-                    }
+        for (const rateVal of rateValues) {
+            try {
+                const res = await calculateFinancialOptions({
+                    registrationDate: regDate,
+                    loanAmount: car.price,
+                    wholePrice: car.price,
+                    loanRate: rateVal,
+                    loanTerm: loanTerm,
+                    sinSeguro: !useInsurance
                 })
-                updatedCount++
+
+                if (res.success && res.data && res.data.financiado.length > 0) {
+                    for (const item of res.data.financiado) {
+                        // Filter
+                        if (item.entityId && !enabledEntityIds.has(item.entityId)) continue
+
+                        let val = 0
+                        if (useInsurance) {
+                            val = item.payment_amount ?? parseFloat(item.coef_fee?.replace(' €', '').replace('.', '').replace(',', '.') || '0')
+                        } else {
+                            val = item.payment_amount_ss ?? parseFloat(item.coef_fee_ss?.replace(' €', '').replace('.', '').replace(',', '.') || '0')
+                        }
+
+                        if (val > 0 && val < minInstallment) {
+                            minInstallment = val
+                            foundOption = true
+                        }
+                    }
+                }
+            } catch (e) {
+                // ignore
             }
-        } catch (e) {
-            console.error(`Failed to calc for car ${car.id}`, e)
+        }
+
+        if (foundOption && minInstallment !== Infinity) {
+            await prisma.car.update({
+                where: { id: car.id },
+                data: {
+                    ...(useInsurance ? { financeMinInstallment: minInstallment } : { financeMinInstallmentSS: minInstallment }),
+                }
+            })
+            updatedCount++
         }
     }
 
+    revalidatePath('/admin/inventory')
     return { success: true, updatedCars: updatedCount }
 }
 
-async function findBestFinancingOption(price: number, regDate: Date, withInsurance: boolean, allowedEntityIds: number[], allowedRateIds: number[]) {
-    const now = new Date()
-    const ageMonths = (now.getFullYear() - regDate.getFullYear()) * 12 + (now.getMonth() - regDate.getMonth())
-    const code = ageMonths <= 6 ? 'vn' : 'vo'
-
-    // Fetch all details matching campaign & active
-    // We want minimal monthly payment => simplified check:
-    // If calculationType is 'coeficiente', payment = price * value / 100
-    // We sort by 'value' (coefficient) ASC to find lowest payment? 
-    // Yes, lower coefficient = lower payment for same price.
-
-    const targetType = withInsurance ? 'coeficiente' : 'coeficiente_sin_seguro'
-
-    // Build query
-    const whereClause: any = {
-        isActive: true,
-        campaign: { code: code },
-        configuration: { isActive: true, isLive: true },
-        calculationType: targetType
+export async function calculateSingleCarFinancing(carId: number, useInsurance: boolean) {
+    const session = await getServerSession(authOptions)
+    if (!session || (!session.user.dealershipId && session.user.role !== 'SUPER_ADMIN')) {
+        throw new Error("Unauthorized")
     }
 
-    if (allowedEntityIds.length > 0) {
-        whereClause.configuration.entityId = { in: allowedEntityIds }
-    }
-
-    if (allowedRateIds.length > 0) {
-        whereClause.interestRateId = { in: allowedRateIds } // Assuming relation exist or we filter details by rate
-    }
-
-    const detail = await prisma.financialConfigurationDetail.findFirst({
-        where: whereClause,
-        orderBy: {
-            value: 'asc' // Smallest coefficient gives smallest payment
-        }
+    const car = await prisma.car.findUnique({
+        where: { id: carId },
+        select: { id: true, price: true, year: true, month: true, dealershipId: true }
     })
 
-    if (!detail) return null
+    if (!car) throw new Error("Car not found")
 
-    const coef = Number(detail.value)
-    const fee = (price * coef) / 100
+    // Check ownership
+    if (session.user.dealershipId && session.user.dealershipId !== car.dealershipId) {
+        throw new Error("Unauthorized")
+    }
 
-    return { monthlyPayment: fee }
+    // Fetch dealer rates
+    const dealership = await prisma.dealership.findUnique({
+        where: { id: car.dealershipId },
+        include: { enabledInterestRates: true, enabledFinancialEntities: true }
+    })
+
+    if (!dealership) throw new Error("Dealership not found")
+
+    const regDate = new Date(car.year, (car.month || 1) - 1, 1)
+    const rateValues = dealership.enabledInterestRates.map(r => Number(r.value))
+    const enabledEntityIds = new Set(dealership.enabledFinancialEntities.map(e => e.id))
+
+    let minInstallment = Infinity
+    let foundOption = false
+    let minRateFound = 0
+    let minBankFound = ""
+    let debugLog: string[] = []
+
+    const loanTerm = 120
+
+    for (const rateVal of rateValues) {
+        try {
+            const res = await calculateFinancialOptions({
+                registrationDate: regDate,
+                loanAmount: car.price,
+                wholePrice: car.price,
+                loanRate: rateVal,
+                loanTerm: loanTerm,
+                sinSeguro: !useInsurance
+            })
+
+            if (res.success && res.data && res.data.financiado.length > 0) {
+                for (const item of res.data.financiado) {
+                    // 1. Filter by Enabled Entity
+                    const isEnabled = item.entityId ? enabledEntityIds.has(item.entityId) : false
+
+                    // 2. Get Raw Value
+                    let val = 0
+                    if (useInsurance) {
+                        // Prefer raw, fallback to parsing if raw missing
+                        val = item.payment_amount ?? parseFloat(item.coef_fee?.replace(' €', '').replace('.', '').replace(',', '.') || '0')
+                    } else {
+                        val = item.payment_amount_ss ?? parseFloat(item.coef_fee_ss?.replace(' €', '').replace('.', '').replace(',', '.') || '0')
+                    }
+
+                    if (val > 0) {
+                        debugLog.push(`[${item.bank_name}(${item.entityId}) @ ${rateVal}%: ${val.toFixed(2)}€ ${isEnabled ? 'OK' : 'DISABLED'}]`)
+                    }
+
+                    if (!isEnabled) continue
+
+                    // 3. Compare with Minimum
+                    if (val > 0 && val < minInstallment) {
+                        minInstallment = val
+                        foundOption = true
+                        minRateFound = rateVal
+                        minBankFound = item.bank_name
+                    }
+                }
+            }
+        } catch (e) {
+            console.error(e)
+            debugLog.push(`[Error: ${e}]`)
+        }
+    }
+
+    if (foundOption && minInstallment !== Infinity) {
+        await prisma.car.update({
+            where: { id: car.id },
+            data: {
+                ...(useInsurance ? { financeMinInstallment: minInstallment } : { financeMinInstallmentSS: minInstallment }),
+            }
+        })
+
+        revalidatePath('/admin/inventory/financing')
+
+        // Return detailed debug info
+        const logStr = debugLog.length > 0 ? debugLog.join(' ') : 'No options found'
+        return { success: true, value: minInstallment, debug: `Winner: ${minBankFound} (${minRateFound}%). Log: ${logStr}` }
+    } else {
+        const logStr = debugLog.length > 0 ? debugLog.join(' ') : 'No options found'
+        return { success: false, error: "No matching financial options found. Log: " + logStr }
+    }
 }

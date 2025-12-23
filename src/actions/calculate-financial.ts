@@ -17,6 +17,7 @@ export type CalculatorInput = {
 }
 
 export type CalculatorResultItem = {
+    entityId: number
     bank_name: string
     // Financed
     coef_fee?: string       // Formatted
@@ -32,6 +33,10 @@ export type CalculatorResultItem = {
     loan_term: number
     max_loan_term_display: string
     rentabilidad_porcentaje?: number
+    // Raw values for backend consumption
+    payment_amount?: number
+    payment_amount_ss?: number
+    contado_amount?: number
 }
 
 export type CalculatorResponse = {
@@ -62,37 +67,17 @@ export async function calculateFinancialOptions(input: CalculatorInput): Promise
         const { registrationDate, loanAmount, loanRate, loanTerm, wholePrice, guarantee = 0, sinSeguro = false } = input
         const wholeRate = input.wholeRate ?? loanRate
 
-        // 1. Determine Campaign
+        // 1. Determine Campaign (Strict)
         const ageMonths = calculateVehicleAge(registrationDate)
-        // Rule: <= 6 months is VN, otherwise VO
-        // Codes in DB: 'vn', 'vo'.
-        // CAREFUL: financial-admin.ts mapped 0->vn?? Let's check DB codes.
-        // financial-admin.ts: 0->vn, 1->vo, 2->vn.
-        // Logic in spec: <=6 is VN.
-        // We will match the campaign 'code' stored in DB.
         const isVN = ageMonths <= 6
         const campaignCode = isVN ? 'vn' : 'vo'
 
-        // 2. Fetch Rules
-        // We need rules for the requested Term and Rate(s).
-        // Since rates are stored by relation, we need to find the InterestRate IDs or filter by included value.
-        // Filter by Value is easier if we join.
-
-        // We need to fetch details that match:
-        // - Active
-        // - Term matches
-        // - Campaign matches (Exact or ALL?? Spec says IN (0, 2) which implies Specific or All).
-        //   Assuming our DB stores 'vn'/'vo', does it have an 'all' campaign?
-        //   Current financial-admin seems to map to exact campaigns.
-        //   We will query for the specific campaign code.
-        // - Rate matches loanRate OR wholeRate.
-
+        // 2. Fetch Rules (Strict Match)
         const details = await prisma.financialConfigurationDetail.findMany({
             where: {
                 isActive: true,
                 loanTerm: { durationMonths: loanTerm },
-                // Campaign: fuzzy match? No, exact code.
-                campaign: { code: campaignCode }, // Assuming 'vn' or 'vo' are the only used codes.
+                campaign: { code: campaignCode }, // STRICT FILTER RESTORED
                 interestRate: {
                     value: { in: [loanRate, wholeRate] }
                 }
@@ -107,6 +92,11 @@ export async function calculateFinancialOptions(input: CalculatorInput): Promise
         // Group by Entity ID
         const byEntity = new Map<number, typeof details>()
         for (const d of details) {
+            // Optional: Extra safety check on Age Rows if they exist
+            // But strict campaign code match is primary.
+            if (d.minVehiculoAgeMonths !== null && ageMonths < d.minVehiculoAgeMonths) continue;
+            if (d.maxVehiculoAgeMonths !== null && ageMonths > d.maxVehiculoAgeMonths) continue;
+
             const eid = d.configuration.entityId
             if (!byEntity.has(eid)) byEntity.set(eid, [])
             byEntity.get(eid)!.push(d)
@@ -120,7 +110,6 @@ export async function calculateFinancialOptions(input: CalculatorInput): Promise
             const entityName = rules[0].configuration.entity.name
 
             // --- FINANCIADO ---
-            // Need Coef (0) and Rent (1) matching loanRate
             const coefRule = rules.find(r => r.calculationType === 'coeficiente' && Number(r.interestRate.value) === loanRate)
             const rentRule = rules.find(r => r.calculationType === 'rentabilidad' && Number(r.interestRate.value) === loanRate)
 
@@ -133,23 +122,23 @@ export async function calculateFinancialOptions(input: CalculatorInput): Promise
                 const coefVal = Number(coefRule.value)
                 const rentVal = Number(rentRule.value)
 
-                // Formula: Fee = (Amount * Coef) / 100
                 const fee = (amountForCalc * coefVal) / 100
-
-                // Formula: Ref = (Amount * Rent) / 100
                 const ref = (amountForCalc * rentVal) / 100
 
                 // SS
                 let feeSSStr: string | undefined
                 let refSSStr: string | undefined
+                let feeSS: number | undefined
+
                 if (sinSeguro && coefSSRule && rentSSRule) {
-                    const feeSS = (amountForCalc * Number(coefSSRule.value)) / 100
+                    feeSS = (amountForCalc * Number(coefSSRule.value)) / 100
                     const refSS = (amountForCalc * Number(rentSSRule.value)) / 100
                     feeSSStr = formatCurrency(feeSS)
                     refSSStr = formatReferenceCode(refSS)
                 }
 
                 financiadoResults.push({
+                    entityId: entityId,
                     bank_name: entityName,
                     coef_fee: formatCurrency(fee),
                     coef_ref: formatReferenceCode(ref),
@@ -158,23 +147,19 @@ export async function calculateFinancialOptions(input: CalculatorInput): Promise
                     coef_rate: loanRate,
                     rentabilidad_porcentaje: rentVal,
                     coef_fee_ss: feeSSStr,
-                    coef_ref_ss: refSSStr
+                    coef_ref_ss: refSSStr,
+                    // Raw
+                    payment_amount: fee,
+                    payment_amount_ss: feeSS
                 })
             }
 
             // --- CONTADO ---
-            // Need Coef (0) and Rent (1) matching wholeRate (usually same as loanRate)
             const cCoefRule = rules.find(r => r.calculationType === 'coeficiente' && Number(r.interestRate.value) === wholeRate)
             const cRentRule = rules.find(r => r.calculationType === 'rentabilidad' && Number(r.interestRate.value) === wholeRate)
 
             if (cRentRule) {
                 const rentVal = Number(cRentRule.value)
-
-                // Ref Formula: (Price * Rent / 100) + (Price - LoanPrinciple)
-                // Note: Spec says (WholePrice * Rent / 100) + (WholePrice - FinancedAmount)
-                // Wait, logic says: Difference = WholePrice - LoanPrinciple. 
-                // Ref = (WholePrice * Rent / 100) + Difference.
-
                 const diff = wholePrice - loanAmount
                 const baseRef = (wholePrice * rentVal) / 100
                 const totalRef = baseRef + diff
@@ -186,13 +171,15 @@ export async function calculateFinancialOptions(input: CalculatorInput): Promise
                 }
 
                 contadoResults.push({
+                    entityId: entityId,
                     bank_name: entityName,
                     cont_fee: contFeeStr,
                     cont_ref: formatReferenceCode(totalRef),
                     loan_term: loanTerm,
                     max_loan_term_display: `${loanTerm} meses`,
                     cont_rate: wholeRate,
-                    rentabilidad_porcentaje: rentVal
+                    rentabilidad_porcentaje: rentVal,
+                    contado_amount: cCoefRule ? (wholePrice * Number(cCoefRule.value)) / 100 : undefined
                 })
             }
         }

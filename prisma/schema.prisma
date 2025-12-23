@@ -155,6 +155,7 @@ model Car {
   monthlyFinancingFee Float?
   financeMinInstallment Float? // Calculated minimum installment
   financeMinInstallmentSS Float? // Calculated minimum installment (Sin Seguro)
+  usePlatformFinancing Boolean @default(true) // Per-car override for platform financing
   vatDeductible       Boolean @default(false)
 
   // Specs
