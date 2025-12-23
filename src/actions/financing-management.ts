@@ -313,11 +313,8 @@ export async function calculateSingleCarFinancing(carId: number, useInsurance: b
 
         revalidatePath('/admin/inventory/financing')
 
-        // Return detailed debug info
-        const logStr = debugLog.length > 0 ? debugLog.join(' ') : 'No options found'
-        return { success: true, value: minInstallment, debug: `Winner: ${minBankFound} (${minRateFound}%). Log: ${logStr}` }
+        return { success: true, value: minInstallment, debug: `(${minRateFound}%) ${minBankFound}` }
     } else {
-        const logStr = debugLog.length > 0 ? debugLog.join(' ') : 'No options found'
-        return { success: false, error: "No matching financial options found. Log: " + logStr }
+        return { success: false, error: "No matching financial options found." }
     }
 }

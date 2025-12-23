@@ -164,9 +164,18 @@ export default function InventoryFinancingTable({ cars: initialCars, dealershipI
                                     </td>
                                     <td className="px-3 py-4 text-xs text-gray-500 max-w-[200px]">
                                         <div className="flex flex-wrap gap-1">
-                                            {enabledEntities.map(e => (
-                                                <span key={e.id} className="bg-blue-100 text-blue-800 px-1 rounded">{e.name}</span>
-                                            ))}
+                                            {enabledEntities.map(e => {
+                                                let shortName = e.name
+                                                if (shortName.includes('Cetelem')) shortName = 'Cetelem'
+                                                else if (shortName.includes('BBVA')) shortName = 'BBVA'
+                                                else if (shortName.includes('Santander')) shortName = 'Santander'
+                                                else if (shortName.includes('Caixa')) shortName = 'Caixa'
+                                                else if (shortName.includes('Confia')) shortName = 'Confia'
+
+                                                return (
+                                                    <span key={e.id} className="bg-blue-100 text-blue-800 px-1 rounded">{shortName}</span>
+                                                )
+                                            })}
                                             {enabledEntities.length === 0 && <span className="text-red-500">Sin entidades</span>}
                                         </div>
                                         <div className="mt-1 flex gap-2 font-semibold">
@@ -178,7 +187,7 @@ export default function InventoryFinancingTable({ cars: initialCars, dealershipI
                                         <div className="flex flex-wrap gap-1">
                                             {enabledRates.length > 0 ? enabledRates.map(r => (
                                                 <span key={r.id} className="bg-orange-50 text-orange-800 px-1.5 py-0.5 rounded border border-orange-100">
-                                                    {r.name} ({Number(r.value).toFixed(2)}%)
+                                                    {r.name}
                                                 </span>
                                             )) : (
                                                 <span className="text-gray-400">-</span>
