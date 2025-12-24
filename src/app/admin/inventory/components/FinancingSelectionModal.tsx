@@ -41,8 +41,8 @@ export function FinancingSelectionModal({ isOpen, onClose, carId, isSinSeguro, o
         try {
             await setSelectedFinancingOption(optionId)
             toast({ title: "Opción actualizada", description: "La nueva cuota ahora es la principal." })
-            onUpdate() // Refresh parent
-            onClose()
+            // Force reload to ensure data consistency across the table
+            window.location.reload()
         } catch (error) {
             toast({ variant: "destructive", title: "Error", description: "No se pudo actualizar la selección" })
         } finally {

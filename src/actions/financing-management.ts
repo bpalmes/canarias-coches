@@ -290,7 +290,7 @@ async function processFinancingForCar(
         const optionsToSave = validOptions.map((opt, index) => ({
             ...opt,
             rank: index + 1,
-            isSelected: index === 0, // Default: Best Price option is selected
+            isSelected: index === 0 && useInsurance, // Default: Only Best 'Con Seguro' is selected globally
             profitRank: opt.profitRank // Persist the calculated profit rank
         }))
 
@@ -384,7 +384,7 @@ export async function setSelectedFinancingOption(optionId: number) {
         await tx.carFinancingOption.updateMany({
             where: {
                 carId: option.carId,
-                isSinSeguro: option.isSinSeguro,
+                // Unselect GLOBALLY (S and NS) to ensure mutual exclusivity
                 id: { not: optionId }
             },
             data: { isSelected: false }

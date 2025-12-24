@@ -4,7 +4,7 @@ import { useState } from 'react'
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/components/ui/use-toast"
 import { updateCarFinancingMode, calculateBulkInventoryFinancing, calculateSingleCarFinancing } from "@/actions/financing-management"
-import { Loader2, Save, Calculator, Settings } from "lucide-react"
+import { Loader2, Save, Calculator, Settings, Check } from "lucide-react"
 import { FinancingSelectionModal } from "./FinancingSelectionModal"
 
 interface InventoryFinancingTableProps {
@@ -98,20 +98,36 @@ export default function InventoryFinancingTable({ cars: initialCars, dealershipI
     }
 
     const getRankColor = (car: any, isSinSeguro: boolean) => {
-        const opt = car.financingOptions?.find((o: any) => o.isSinSeguro === isSinSeguro)
+        const options = car.financingOptions || []
+        // 1. Try to find the SELECTED option for this mode
+        let opt = options.find((o: any) => o.isSinSeguro === isSinSeguro && o.isSelected)
+        const isSelected = !!opt
+
+        // 2. If no selected option in this mode, find the BEST (Rank 1) to show potential
+        if (!opt) {
+            opt = options.find((o: any) => o.isSinSeguro === isSinSeguro && o.rank === 1)
+        }
+
         const profitRank = opt?.profitRank
 
         if (!profitRank) return null // No rank available
 
         // Rank 1 = Green, 1-5 Emerald, 5-10 Amber, else Rose
-        let colorClass = 'bg-rose-500 text-white shadow-rose-200'
-        if (profitRank === 1) colorClass = 'bg-emerald-500 text-white shadow-emerald-200'
-        else if (profitRank <= 5) colorClass = 'bg-emerald-400 text-white shadow-emerald-200'
-        else if (profitRank <= 10) colorClass = 'bg-amber-400 text-white shadow-amber-200'
+        let colorClass = 'bg-rose-500 shadow-rose-200'
+        if (profitRank === 1) colorClass = 'bg-emerald-500 shadow-emerald-200'
+        else if (profitRank <= 5) colorClass = 'bg-emerald-400 shadow-emerald-200'
+        else if (profitRank <= 10) colorClass = 'bg-amber-400 shadow-amber-200'
 
         return (
-            <div className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold shadow-sm ${colorClass} ml-2`}>
-                {profitRank}
+            <div className="relative group ml-1 mr-2" title={`Ranking de Rentabilidad: ${profitRank}`}>
+                <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white shadow-sm ring-1 ring-white ${colorClass}`}>
+                    {profitRank}
+                </div>
+                {isSelected && (
+                    <div className="absolute -bottom-1 -right-1 bg-white rounded-full shadow-sm border border-gray-100 p-0.5" title="Opción Seleccionada para Tarjeta">
+                        <Check className="w-2 h-2 text-emerald-600 stroke-[3]" />
+                    </div>
+                )}
             </div>
         )
     }
