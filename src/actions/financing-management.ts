@@ -152,66 +152,21 @@ export async function calculateBulkInventoryFinancing(dealershipId: number, useI
             status: 'PUBLISHED',
             usePlatformFinancing: true
         },
-        select: { id: true, price: true, year: true, month: true }
+        select: { id: true, price: true, year: true, month: true, dealershipId: true }
     })
 
     let updatedCount = 0
 
-    // Optimize: Pre-map enabled rates values
+    // Pre-calculate common data
     const rateValues = dealership.enabledInterestRates.map(r => Number(r.value))
     const enabledEntityIds = new Set(dealership.enabledFinancialEntities.map(e => e.id))
 
     for (const car of cars) {
-        const regDate = new Date(car.year, (car.month || 1) - 1, 1)
-
-        let minInstallment = Infinity
-        let foundOption = false
-
-        // We must find the best option across ALL enabled rates for this dealer.
-        const loanTerm = 120
-
-        for (const rateVal of rateValues) {
-            try {
-                const res = await calculateFinancialOptions({
-                    registrationDate: regDate,
-                    loanAmount: car.price,
-                    wholePrice: car.price,
-                    loanRate: rateVal,
-                    loanTerm: loanTerm,
-                    sinSeguro: !useInsurance
-                })
-
-                if (res.success && res.data && res.data.financiado.length > 0) {
-                    for (const item of res.data.financiado) {
-                        // Filter
-                        if (item.entityId && !enabledEntityIds.has(item.entityId)) continue
-
-                        let val = 0
-                        if (useInsurance) {
-                            val = item.payment_amount ?? parseFloat(item.coef_fee?.replace(' €', '').replace('.', '').replace(',', '.') || '0')
-                        } else {
-                            val = item.payment_amount_ss ?? parseFloat(item.coef_fee_ss?.replace(' €', '').replace('.', '').replace(',', '.') || '0')
-                        }
-
-                        if (val > 0 && val < minInstallment) {
-                            minInstallment = val
-                            foundOption = true
-                        }
-                    }
-                }
-            } catch (e) {
-                // ignore
-            }
-        }
-
-        if (foundOption && minInstallment !== Infinity) {
-            await prisma.car.update({
-                where: { id: car.id },
-                data: {
-                    ...(useInsurance ? { financeMinInstallment: minInstallment } : { financeMinInstallmentSS: minInstallment }),
-                }
-            })
-            updatedCount++
+        try {
+            const result = await processFinancingForCar(car, rateValues, enabledEntityIds, useInsurance)
+            if (result.success) updatedCount++
+        } catch (e) {
+            console.error(`Error calculating for car ${car.id}:`, e)
         }
     }
 
@@ -232,12 +187,10 @@ export async function calculateSingleCarFinancing(carId: number, useInsurance: b
 
     if (!car) throw new Error("Car not found")
 
-    // Check ownership
     if (session.user.dealershipId && session.user.dealershipId !== car.dealershipId) {
         throw new Error("Unauthorized")
     }
 
-    // Fetch dealer rates
     const dealership = await prisma.dealership.findUnique({
         where: { id: car.dealershipId },
         include: { enabledInterestRates: true, enabledFinancialEntities: true }
@@ -245,17 +198,23 @@ export async function calculateSingleCarFinancing(carId: number, useInsurance: b
 
     if (!dealership) throw new Error("Dealership not found")
 
-    const regDate = new Date(car.year, (car.month || 1) - 1, 1)
     const rateValues = dealership.enabledInterestRates.map(r => Number(r.value))
     const enabledEntityIds = new Set(dealership.enabledFinancialEntities.map(e => e.id))
 
-    let minInstallment = Infinity
-    let foundOption = false
-    let minRateFound = 0
-    let minBankFound = ""
-    let debugLog: string[] = []
+    return await processFinancingForCar(car, rateValues, enabledEntityIds, useInsurance)
+}
 
+// Helper function to centralize logic and persistence
+async function processFinancingForCar(
+    car: { id: number, price: number, year: number, month: number | null },
+    rateValues: number[],
+    enabledEntityIds: Set<number>,
+    useInsurance: boolean
+) {
+    const regDate = new Date(car.year, (car.month || 1) - 1, 1)
     const loanTerm = 120
+
+    const validOptions: any[] = []
 
     for (const rateVal of rateValues) {
         try {
@@ -271,50 +230,171 @@ export async function calculateSingleCarFinancing(carId: number, useInsurance: b
             if (res.success && res.data && res.data.financiado.length > 0) {
                 for (const item of res.data.financiado) {
                     // 1. Filter by Enabled Entity
-                    const isEnabled = item.entityId ? enabledEntityIds.has(item.entityId) : false
+                    if (item.entityId && !enabledEntityIds.has(item.entityId)) continue
 
-                    // 2. Get Raw Value
+                    // 2. Get Value & Code
                     let val = 0
+                    let refCode = ''
+
                     if (useInsurance) {
-                        // Prefer raw, fallback to parsing if raw missing
                         val = item.payment_amount ?? parseFloat(item.coef_fee?.replace(' €', '').replace('.', '').replace(',', '.') || '0')
+                        refCode = item.coef_ref || ''
                     } else {
                         val = item.payment_amount_ss ?? parseFloat(item.coef_fee_ss?.replace(' €', '').replace('.', '').replace(',', '.') || '0')
+                        refCode = item.coef_ref_ss || ''
+                    }
+
+                    // Parse numeric value from Code (e.g. C001500 -> 1500)
+                    let refValue = 0
+                    if (refCode.startsWith('C')) {
+                        refValue = parseInt(refCode.substring(1)) || 0
                     }
 
                     if (val > 0) {
-                        debugLog.push(`[${item.bank_name}(${item.entityId}) @ ${rateVal}%: ${val.toFixed(2)}€ ${isEnabled ? 'OK' : 'DISABLED'}]`)
-                    }
-
-                    if (!isEnabled) continue
-
-                    // 3. Compare with Minimum
-                    if (val > 0 && val < minInstallment) {
-                        minInstallment = val
-                        foundOption = true
-                        minRateFound = rateVal
-                        minBankFound = item.bank_name
+                        validOptions.push({
+                            carId: car.id,
+                            bankName: item.bank_name,
+                            entityId: item.entityId,
+                            monthlyFee: val,
+                            interestRate: rateVal,
+                            loanTerm: loanTerm,
+                            isSinSeguro: !useInsurance,
+                            financialCode: refCode,
+                            financialRefValue: refValue
+                            // Rank and Selected will be set after sorting
+                        })
                     }
                 }
             }
         } catch (e) {
             console.error(e)
-            debugLog.push(`[Error: ${e}]`)
         }
     }
 
-    if (foundOption && minInstallment !== Infinity) {
-        await prisma.car.update({
-            where: { id: car.id },
-            data: {
-                ...(useInsurance ? { financeMinInstallment: minInstallment } : { financeMinInstallmentSS: minInstallment }),
-            }
+    if (validOptions.length > 0) {
+        // Sort by Monthly Fee ASC (Lowest first)
+        validOptions.sort((a, b) => a.monthlyFee - b.monthlyFee)
+
+        // Assign Rank and Selected
+        const optionsToSave = validOptions.map((opt, index) => ({
+            ...opt,
+            rank: index + 1,
+            isSelected: index === 0 // Default: Best option is selected
+        }))
+
+        // Transaction: Clear Old -> Save New -> Update Car
+        await prisma.$transaction(async (tx) => {
+            // Delete existing options for this mode (S/NS)
+            await tx.carFinancingOption.deleteMany({
+                where: { carId: car.id, isSinSeguro: !useInsurance }
+            })
+
+            // Create new options
+            await tx.carFinancingOption.createMany({
+                data: optionsToSave
+            })
+
+            // Update Car Min Installment (Cache)
+            const best = optionsToSave[0]
+            await tx.car.update({
+                where: { id: car.id },
+                data: {
+                    ...(useInsurance ? { financeMinInstallment: best.monthlyFee } : { financeMinInstallmentSS: best.monthlyFee }),
+                }
+            })
         })
 
+        const best = optionsToSave[0]
         revalidatePath('/admin/inventory/financing')
-
-        return { success: true, value: minInstallment, debug: `(${minRateFound}%) ${minBankFound}` }
+        return { success: true, value: best.monthlyFee, debug: `(${best.interestRate}%) ${best.bankName}` }
     } else {
+        // If no options, clear existing? Or leave stale? 
+        // Better to clear to reflect reality.
+        await prisma.$transaction(async (tx) => {
+            await tx.carFinancingOption.deleteMany({
+                where: { carId: car.id, isSinSeguro: !useInsurance }
+            })
+            await tx.car.update({
+                where: { id: car.id },
+                data: {
+                    ...(useInsurance ? { financeMinInstallment: null } : { financeMinInstallmentSS: null }),
+                }
+            })
+        })
+
         return { success: false, error: "No matching financial options found." }
     }
+}
+
+// ----------------------------------------------------------------------
+// New Actions for Manual Selection & Persistence
+// ----------------------------------------------------------------------
+
+export async function getFinancingOptionsForCar(carId: number, isSinSeguro: boolean) {
+    const session = await getServerSession(authOptions)
+    if (!session || (!session.user.dealershipId && session.user.role !== 'SUPER_ADMIN')) {
+        throw new Error("Unauthorized")
+    }
+
+    // Auth Check
+    const car = await prisma.car.findUnique({ where: { id: carId }, select: { dealershipId: true } })
+    if (!car) throw new Error("Car not found")
+    if (session.user.dealershipId && session.user.dealershipId !== car.dealershipId) throw new Error("Unauthorized")
+
+    return await prisma.carFinancingOption.findMany({
+        where: {
+            carId,
+            isSinSeguro
+        },
+        orderBy: { monthlyFee: 'asc' }
+    })
+}
+
+export async function setSelectedFinancingOption(optionId: number) {
+    const session = await getServerSession(authOptions)
+    if (!session || (!session.user.dealershipId && session.user.role !== 'SUPER_ADMIN')) {
+        throw new Error("Unauthorized")
+    }
+
+    const option = await prisma.carFinancingOption.findUnique({
+        where: { id: optionId },
+        include: { car: true }
+    })
+
+    if (!option) throw new Error("Option not found")
+
+    if (session.user.dealershipId && session.user.dealershipId !== option.car.dealershipId) {
+        throw new Error("Unauthorized")
+    }
+
+    await prisma.$transaction(async (tx) => {
+        // 1. Unselect others
+        await tx.carFinancingOption.updateMany({
+            where: {
+                carId: option.carId,
+                isSinSeguro: option.isSinSeguro,
+                id: { not: optionId }
+            },
+            data: { isSelected: false }
+        })
+
+        // 2. Select this one
+        await tx.carFinancingOption.update({
+            where: { id: optionId },
+            data: { isSelected: true }
+        })
+
+        // 3. Update Car Cache
+        await tx.car.update({
+            where: { id: option.carId },
+            data: {
+                ...(option.isSinSeguro
+                    ? { financeMinInstallmentSS: option.monthlyFee }
+                    : { financeMinInstallment: option.monthlyFee })
+            }
+        })
+    })
+
+    revalidatePath('/admin/inventory')
+    return { success: true }
 }

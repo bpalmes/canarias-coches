@@ -212,6 +212,8 @@ export class CarService {
                     model: true,
                     dealership: true,
                     images: { orderBy: { order: 'asc' }, take: 1 },
+                    // Include selected financing options to display rank/color
+                    financingOptions: { where: { isSelected: true } }
                 },
                 orderBy: { updatedAt: 'desc' },
                 skip,

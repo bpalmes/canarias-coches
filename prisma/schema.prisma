@@ -209,6 +209,36 @@ model Car {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  financingOptions CarFinancingOption[]
+}
+
+model CarFinancingOption {
+  id              Int      @id @default(autoincrement())
+  carId           Int
+  car             Car      @relation(fields: [carId], references: [id], onDelete: Cascade)
+  
+  // Bank Info
+  bankName        String
+  entityId        Int
+  
+  // Financial Data
+  monthlyFee      Float
+  interestRate    Float
+  loanTerm        Int
+  
+  // Meta
+  isSinSeguro     Boolean @default(false) // Distinguishes "S" vs "NS" lists
+  rank            Int     // 1 = Best (Green), 2..N = Worse
+  isSelected      Boolean @default(false) // The one currently active/displayed
+  financialCode   String?
+  financialRefValue Float?
+  
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@index([carId])
+  @@index([carId, isSelected])
 }
 
 model Image {

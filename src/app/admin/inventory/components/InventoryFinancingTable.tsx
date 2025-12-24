@@ -4,7 +4,8 @@ import { useState } from 'react'
 import { Switch } from "@/components/ui/switch"
 import { useToast } from "@/components/ui/use-toast"
 import { updateCarFinancingMode, calculateBulkInventoryFinancing, calculateSingleCarFinancing } from "@/actions/financing-management"
-import { Loader2, Save, Calculator } from "lucide-react"
+import { Loader2, Save, Calculator, Settings } from "lucide-react"
+import { FinancingSelectionModal } from "./FinancingSelectionModal"
 
 interface InventoryFinancingTableProps {
     cars: any[]
@@ -23,6 +24,9 @@ export default function InventoryFinancingTable({ cars: initialCars, dealershipI
     const [calculatingId, setCalculatingId] = useState<number | null>(null)
     const [isBulkCalculating, setIsBulkCalculating] = useState(false)
     const [savingId, setSavingId] = useState<number | null>(null)
+
+    // Modal State
+    const [modalConfig, setModalConfig] = useState<{ carId: number, isSinSeguro: boolean } | null>(null)
 
     const handleTogglePlatform = async (carId: number, usePlatform: boolean) => {
         setSavingId(carId)
@@ -81,15 +85,8 @@ export default function InventoryFinancingTable({ cars: initialCars, dealershipI
             const res = await calculateSingleCarFinancing(carId, withInsurance)
             if (res.success) {
                 toast({ title: "Cálculado", description: `Cuota: ${res.value?.toFixed(2)}€ ${res.debug || ''}` })
-                // Update local state to show result immediately
-                setCars(prev => prev.map(c => {
-                    if (c.id !== carId) return c
-                    return {
-                        ...c,
-                        financeMinInstallment: withInsurance ? res.value : c.financeMinInstallment,
-                        financeMinInstallmentSS: !withInsurance ? res.value : c.financeMinInstallmentSS
-                    }
-                }))
+                // Reload to fetch new structure with formatting options
+                window.location.reload()
             } else {
                 toast({ variant: "destructive", title: "Aviso", description: res.error })
             }
@@ -98,6 +95,14 @@ export default function InventoryFinancingTable({ cars: initialCars, dealershipI
         } finally {
             setCalculatingId(null)
         }
+    }
+
+    const getRankColor = (car: any, isSinSeguro: boolean) => {
+        const option = car.financingOptions?.find((o: any) => o.isSinSeguro === isSinSeguro)
+        const rank = option?.rank ?? 999
+        if (rank === 1) return 'bg-green-500'
+        if (rank > 1 && rank <= 5) return 'bg-yellow-500'
+        return 'bg-red-500'
     }
 
     return (
@@ -134,9 +139,7 @@ export default function InventoryFinancingTable({ cars: initialCars, dealershipI
             {cars.length === 0 ? (
                 <div className="flex flex-col items-center justify-center py-12 bg-white rounded-lg border-2 border-dashed border-gray-300">
                     <div className="text-gray-400 mb-2">
-                        <svg className="mx-auto h-12 w-12" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
-                        </svg>
+                        <Calculator className="mx-auto h-12 w-12" />
                     </div>
                     <h3 className="mt-2 text-sm font-medium text-gray-900">No hay vehículos</h3>
                     <p className="mt-1 text-sm text-gray-500">No se encontraron vehículos para calcular financiación.</p>
@@ -209,12 +212,38 @@ export default function InventoryFinancingTable({ cars: initialCars, dealershipI
                                     </td>
                                     <td className="whitespace-nowrap px-3 py-4 text-sm font-medium text-gray-900">
                                         {car.usePlatformFinancing ? (
-                                            <span className="text-indigo-600">
-                                                {car.financeMinInstallment
-                                                    ? car.financeMinInstallment.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' })
-                                                    : '-'
-                                                }
-                                            </span>
+                                            <div className="flex flex-col gap-1">
+                                                {/* With Insurance Row */}
+                                                {permissions.enableWithInsurance && (
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={`w-2 h-2 rounded-full ${getRankColor(car, false)}`}></div>
+                                                        <span className="text-indigo-600 font-bold">
+                                                            S: {car.financeMinInstallment ? car.financeMinInstallment.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-'}
+                                                        </span>
+                                                        <button
+                                                            onClick={() => setModalConfig({ carId: car.id, isSinSeguro: false })}
+                                                            className="text-gray-400 hover:text-gray-600"
+                                                        >
+                                                            <Settings className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                                {/* Without Insurance Row */}
+                                                {permissions.enableWithoutInsurance && (
+                                                    <div className="flex items-center gap-2">
+                                                        <div className={`w-2 h-2 rounded-full ${getRankColor(car, true)}`}></div>
+                                                        <span className="text-gray-600">
+                                                            NS: {car.financeMinInstallmentSS ? car.financeMinInstallmentSS.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-'}
+                                                        </span>
+                                                        <button
+                                                            onClick={() => setModalConfig({ carId: car.id, isSinSeguro: true })}
+                                                            className="text-gray-400 hover:text-gray-600"
+                                                        >
+                                                            <Settings className="w-4 h-4" />
+                                                        </button>
+                                                    </div>
+                                                )}
+                                            </div>
                                         ) : (
                                             <div className="flex items-center gap-2">
                                                 <input
@@ -235,35 +264,29 @@ export default function InventoryFinancingTable({ cars: initialCars, dealershipI
                                         )}
                                     </td>
                                     <td className="relative whitespace-nowrap py-4 pl-3 pr-4 text-right text-sm font-medium sm:pr-6">
-                                        <div className="flex flex-col gap-1 items-end">
-                                            <div className="text-xs text-gray-500 flex gap-2">
-                                                <span title="Mínimo con seguro">S: {car.financeMinInstallment?.toFixed(0) || '-'}€</span>
-                                                <span title="Mínimo sin seguro">NS: {car.financeMinInstallmentSS?.toFixed(0) || '-'}€</span>
-                                            </div>
-                                            <div className="flex gap-2">
-                                                {permissions.enableWithInsurance && (
-                                                    <button
-                                                        onClick={() => handleCalculateSingle(car.id, true)}
-                                                        disabled={calculatingId === car.id}
-                                                        className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-2 py-1 rounded text-xs flex items-center border border-indigo-200"
-                                                        title="Calcular solo este coche (Con Seguro)"
-                                                    >
-                                                        {calculatingId === car.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Calculator className="h-3 w-3 mr-1" />}
-                                                        S
-                                                    </button>
-                                                )}
-                                                {permissions.enableWithoutInsurance && (
-                                                    <button
-                                                        onClick={() => handleCalculateSingle(car.id, false)}
-                                                        disabled={calculatingId === car.id}
-                                                        className="bg-gray-50 text-gray-700 hover:bg-gray-100 px-2 py-1 rounded text-xs flex items-center border border-gray-200"
-                                                        title="Calcular solo este coche (Sin Seguro)"
-                                                    >
-                                                        {calculatingId === car.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Calculator className="h-3 w-3 mr-1" />}
-                                                        NS
-                                                    </button>
-                                                )}
-                                            </div>
+                                        <div className="flex gap-2 justify-end">
+                                            {permissions.enableWithInsurance && (
+                                                <button
+                                                    onClick={() => handleCalculateSingle(car.id, true)}
+                                                    disabled={calculatingId === car.id}
+                                                    className="bg-indigo-50 text-indigo-700 hover:bg-indigo-100 px-2 py-1 rounded text-xs flex items-center border border-indigo-200"
+                                                    title="Calcular (S)"
+                                                >
+                                                    {calculatingId === car.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Calculator className="h-3 w-3 mr-1" />}
+                                                    S
+                                                </button>
+                                            )}
+                                            {permissions.enableWithoutInsurance && (
+                                                <button
+                                                    onClick={() => handleCalculateSingle(car.id, false)}
+                                                    disabled={calculatingId === car.id}
+                                                    className="bg-gray-50 text-gray-700 hover:bg-gray-100 px-2 py-1 rounded text-xs flex items-center border border-gray-200"
+                                                    title="Calcular (NS)"
+                                                >
+                                                    {calculatingId === car.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <Calculator className="h-3 w-3 mr-1" />}
+                                                    NS
+                                                </button>
+                                            )}
                                         </div>
                                     </td>
                                 </tr>
@@ -271,6 +294,16 @@ export default function InventoryFinancingTable({ cars: initialCars, dealershipI
                         </tbody>
                     </table>
                 </div>
+            )}
+
+            {modalConfig && (
+                <FinancingSelectionModal
+                    isOpen={!!modalConfig}
+                    onClose={() => setModalConfig(null)}
+                    carId={modalConfig.carId}
+                    isSinSeguro={modalConfig.isSinSeguro}
+                    onUpdate={() => window.location.reload()}
+                />
             )}
         </div>
     )
