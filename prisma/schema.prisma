@@ -233,6 +233,7 @@ model CarFinancingOption {
   isSelected      Boolean @default(false) // The one currently active/displayed
   financialCode   String?
   financialRefValue Float?
+  profitRank      Int?
   
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt

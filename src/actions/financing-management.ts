@@ -272,14 +272,26 @@ async function processFinancingForCar(
     }
 
     if (validOptions.length > 0) {
-        // Sort by Monthly Fee ASC (Lowest first)
+        // 1. Calculate Profit Rank (Strict 1..N based on Ref Value High->Low)
+        const profitSorted = [...validOptions].sort((a, b) => (b.financialRefValue || 0) - (a.financialRefValue || 0))
+
+        // Assign Profit Rank to the objects
+        profitSorted.forEach((opt, idx) => {
+            // Only assign rank if it has a value > 0
+            if ((opt.financialRefValue || 0) > 0) {
+                opt.profitRank = idx + 1
+            }
+        })
+
+        // 2. Sort by Monthly Fee ASC (Lowest first) for Selection Strategy
         validOptions.sort((a, b) => a.monthlyFee - b.monthlyFee)
 
-        // Assign Rank and Selected
+        // 3. Assign Fee Rank and Selected status
         const optionsToSave = validOptions.map((opt, index) => ({
             ...opt,
             rank: index + 1,
-            isSelected: index === 0 // Default: Best option is selected
+            isSelected: index === 0, // Default: Best Price option is selected
+            profitRank: opt.profitRank // Persist the calculated profit rank
         }))
 
         // Transaction: Clear Old -> Save New -> Update Car

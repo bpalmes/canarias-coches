@@ -98,11 +98,22 @@ export default function InventoryFinancingTable({ cars: initialCars, dealershipI
     }
 
     const getRankColor = (car: any, isSinSeguro: boolean) => {
-        const option = car.financingOptions?.find((o: any) => o.isSinSeguro === isSinSeguro)
-        const rank = option?.rank ?? 999
-        if (rank === 1) return 'bg-green-500'
-        if (rank > 1 && rank <= 5) return 'bg-yellow-500'
-        return 'bg-red-500'
+        const opt = car.financingOptions?.find((o: any) => o.isSinSeguro === isSinSeguro)
+        const profitRank = opt?.profitRank
+
+        if (!profitRank) return null // No rank available
+
+        // Rank 1 = Green, 1-5 Emerald, 5-10 Amber, else Rose
+        let colorClass = 'bg-rose-500 text-white shadow-rose-200'
+        if (profitRank === 1) colorClass = 'bg-emerald-500 text-white shadow-emerald-200'
+        else if (profitRank <= 5) colorClass = 'bg-emerald-400 text-white shadow-emerald-200'
+        else if (profitRank <= 10) colorClass = 'bg-amber-400 text-white shadow-amber-200'
+
+        return (
+            <div className={`flex items-center justify-center w-5 h-5 rounded-full text-[10px] font-bold shadow-sm ${colorClass} ml-2`}>
+                {profitRank}
+            </div>
+        )
     }
 
     return (
@@ -216,7 +227,7 @@ export default function InventoryFinancingTable({ cars: initialCars, dealershipI
                                                 {/* With Insurance Row */}
                                                 {permissions.enableWithInsurance && (
                                                     <div className="flex items-center gap-2">
-                                                        <div className={`w-2 h-2 rounded-full ${getRankColor(car, false)}`}></div>
+                                                        {getRankColor(car, false)}
                                                         <span className="text-indigo-600 font-bold">
                                                             S: {car.financeMinInstallment ? car.financeMinInstallment.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-'}
                                                         </span>
@@ -231,7 +242,7 @@ export default function InventoryFinancingTable({ cars: initialCars, dealershipI
                                                 {/* Without Insurance Row */}
                                                 {permissions.enableWithoutInsurance && (
                                                     <div className="flex items-center gap-2">
-                                                        <div className={`w-2 h-2 rounded-full ${getRankColor(car, true)}`}></div>
+                                                        {getRankColor(car, true)}
                                                         <span className="text-gray-600">
                                                             NS: {car.financeMinInstallmentSS ? car.financeMinInstallmentSS.toLocaleString('es-ES', { style: 'currency', currency: 'EUR' }) : '-'}
                                                         </span>
