@@ -99,6 +99,8 @@ export default function InventoryFinancingTable({ cars: initialCars, dealershipI
 
     const getRankColor = (car: any, isSinSeguro: boolean) => {
         const options = car.financingOptions || []
+        // console.log(`Car ${car.id} [${isSinSeguro ? 'NS' : 'S'}] Opts:`, options.map((o: any) => ({ id: o.id, sel: o.isSelected, r: o.rank, pr: o.profitRank, ss: o.isSinSeguro })))
+
         // 1. Try to find the SELECTED option for this mode
         let opt = options.find((o: any) => o.isSinSeguro === isSinSeguro && o.isSelected)
         const isSelected = !!opt
@@ -108,20 +110,24 @@ export default function InventoryFinancingTable({ cars: initialCars, dealershipI
             opt = options.find((o: any) => o.isSinSeguro === isSinSeguro && o.rank === 1)
         }
 
-        const profitRank = opt?.profitRank
+        // If no option found at all (e.g. not calculated) -> Return invisible spacer for alignment
+        if (!opt) return <div className="w-6 h-6 ml-1 mr-2" />
 
-        if (!profitRank) return null // No rank available
+        const profitRank = opt.profitRank
+        const displayValue = profitRank ? profitRank.toString() : '-'
 
-        // Rank 1 = Green, 1-5 Emerald, 5-10 Amber, else Rose
-        let colorClass = 'bg-rose-500 shadow-rose-200'
-        if (profitRank === 1) colorClass = 'bg-emerald-500 shadow-emerald-200'
-        else if (profitRank <= 5) colorClass = 'bg-emerald-400 shadow-emerald-200'
-        else if (profitRank <= 10) colorClass = 'bg-amber-400 shadow-amber-200'
+        // Colors
+        let colorClass = 'bg-gray-400 shadow-gray-200 text-white' // Default / No Data
+
+        if (profitRank === 1) colorClass = 'bg-emerald-500 shadow-emerald-200 text-white'
+        else if (profitRank && profitRank <= 5) colorClass = 'bg-emerald-400 shadow-emerald-200 text-white'
+        else if (profitRank && profitRank <= 10) colorClass = 'bg-amber-400 shadow-amber-200 text-white'
+        else if (profitRank) colorClass = 'bg-rose-500 shadow-rose-200 text-white'
 
         return (
-            <div className="relative group ml-1 mr-2" title={`Ranking de Rentabilidad: ${profitRank}`}>
+            <div className="relative group ml-1 mr-2" title={profitRank ? `Ranking de Rentabilidad: ${profitRank}` : 'Sin datos de rentabilidad'}>
                 <div className={`flex items-center justify-center w-6 h-6 rounded-full text-xs font-bold text-white shadow-sm ring-1 ring-white ${colorClass}`}>
-                    {profitRank}
+                    {displayValue}
                 </div>
                 {isSelected && (
                     <div className="absolute -bottom-1 -right-1 bg-white rounded-full shadow-sm border border-gray-100 p-0.5" title="Opción Seleccionada para Tarjeta">
