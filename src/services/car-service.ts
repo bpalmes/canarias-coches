@@ -183,6 +183,10 @@ export class CarService {
 
         if (params.dealershipId) {
             where.dealershipId = params.dealershipId
+        } else {
+            // Strict Tenant Isolation: Show NO cars if no dealer selected (Unlinked Global Admin)
+            // dealershipId is required, so we use -1 to ensure an empty safe list
+            where.dealershipId = -1
         }
 
         if (params.isB2BAvailable !== undefined) {
@@ -215,7 +219,7 @@ export class CarService {
                     // Include selected financing options to display rank/color
                     financingOptions: { where: { isSelected: true } }
                 },
-                orderBy: { updatedAt: 'desc' },
+                orderBy: { createdAt: 'desc' },
                 skip,
                 take: limit,
             }),

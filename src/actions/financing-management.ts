@@ -400,6 +400,7 @@ export async function setSelectedFinancingOption(optionId: number) {
         await tx.car.update({
             where: { id: option.carId },
             data: {
+                monthlyFinancingFee: option.monthlyFee, // Update Display Fee for Cards
                 ...(option.isSinSeguro
                     ? { financeMinInstallmentSS: option.monthlyFee }
                     : { financeMinInstallment: option.monthlyFee })

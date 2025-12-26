@@ -38,8 +38,35 @@ export default async function InventoryFinancingPage() {
         }
     }) : null
 
+    // Logic for Super Admin (Global View) or Dealership View
+    let financingPermissions = dealership
+        ? {
+            financingEnabled: dealership.financingEnabled,
+            usePlatformFinancing: dealership.usePlatformFinancing,
+            enableWithInsurance: dealership.enableWithInsurance,
+            enableWithoutInsurance: dealership.enableWithoutInsurance,
+            enabledFinancialEntities: dealership.enabledFinancialEntities,
+            enabledInterestRates: dealership.enabledInterestRates
+        }
+        : null
+
+    if (!financingPermissions && session?.user.role === 'SUPER_ADMIN') {
+        // Super Admin Fallback: Enable Everything
+        const allEntities = await prisma.financialEntity.findMany({ select: { id: true, name: true, code: true } })
+        const allRates = await prisma.financialInterestRate.findMany({ select: { id: true, name: true, value: true } })
+
+        financingPermissions = {
+            financingEnabled: true,
+            usePlatformFinancing: true, // Default for global
+            enableWithInsurance: true,
+            enableWithoutInsurance: true,
+            enabledFinancialEntities: allEntities,
+            enabledInterestRates: allRates
+        }
+    }
+
     // Access Control
-    if (!dealership?.financingEnabled) {
+    if (!financingPermissions?.financingEnabled) {
         redirect('/admin/inventory')
     }
 
@@ -58,7 +85,7 @@ export default async function InventoryFinancingPage() {
     const cars = result.data
 
     // Serialize data for Client Component
-    const serializedRates = dealership?.enabledInterestRates.map(rate => ({
+    const serializedRates = financingPermissions?.enabledInterestRates.map(rate => ({
         ...rate,
         value: Number(rate.value)
     })) || []
@@ -85,12 +112,12 @@ export default async function InventoryFinancingPage() {
 
             <InventoryFinancingTable
                 cars={cars}
-                dealershipId={dealershipId!}
+                dealershipId={dealershipId || 0}
                 permissions={{
-                    enableWithInsurance: dealership?.enableWithInsurance ?? false,
-                    enableWithoutInsurance: dealership?.enableWithoutInsurance ?? false
+                    enableWithInsurance: financingPermissions?.enableWithInsurance ?? false,
+                    enableWithoutInsurance: financingPermissions?.enableWithoutInsurance ?? false
                 }}
-                enabledEntities={dealership?.enabledFinancialEntities || []}
+                enabledEntities={financingPermissions?.enabledFinancialEntities || []}
                 enabledRates={serializedRates}
             />
         </div>

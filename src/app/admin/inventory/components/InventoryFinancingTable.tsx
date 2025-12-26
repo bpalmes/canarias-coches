@@ -16,9 +16,10 @@ interface InventoryFinancingTableProps {
     }
     enabledEntities: { id: number, name: string, code: string }[]
     enabledRates: { id: number, name: string, value: number }[]
+    isReadOnly?: boolean
 }
 
-export default function InventoryFinancingTable({ cars: initialCars, dealershipId, permissions, enabledEntities = [], enabledRates = [] }: InventoryFinancingTableProps) {
+export default function InventoryFinancingTable({ cars: initialCars, dealershipId, permissions, enabledEntities = [], enabledRates = [], isReadOnly = false }: InventoryFinancingTableProps) {
     const { toast } = useToast()
     const [cars, setCars] = useState(initialCars)
     const [calculatingId, setCalculatingId] = useState<number | null>(null)

@@ -57,7 +57,7 @@ export default function Sidebar({ isSuperAdmin, isImpersonating }: SidebarProps)
       ]
     },
     {
-      title: 'Gestión',
+      title: 'Gestión Comercial',
       items: [
         { href: '/admin/leads', label: 'Gestión de Leads', icon: Users },
         { href: '/admin/financing', label: 'Financiación', icon: BadgeEuro },

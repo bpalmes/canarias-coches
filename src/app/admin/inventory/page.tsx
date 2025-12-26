@@ -34,7 +34,7 @@ export default async function AdminInventoryPage({
         }
     }) : null
 
-    const showFinancingTab = dealership?.financingEnabled ?? false;
+    const showFinancingTab = (dealership?.financingEnabled) || (session?.user.role === 'SUPER_ADMIN');
 
     // Standard params
     const page = typeof resolvedSearchParams.page === 'string' ? parseInt(resolvedSearchParams.page) : 1

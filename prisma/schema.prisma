@@ -37,8 +37,10 @@ enum CarStatus {
 enum LeadStatus {
   NEW
   CONTACTED
+  QUALIFIED
   VISIT_SCHEDULED
-  OFFER_SENT
+  PROPOSAL_SENT
+  NEGOTIATION
   WON
   LOST
 }
@@ -101,6 +103,8 @@ model User {
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+  
+  assignedLeads Lead[]
 }
 
 // -----------------------------------------------------
@@ -323,7 +327,40 @@ model Lead {
   @@index([dealershipId])
   @@index([email])
   
+  // CRM Extended Features
+  priority    Int @default(0) // 0=Low, 1=Medium, 2=High
+  tags        LeadTag[]
+  activities  LeadActivity[]
+  
+  assignedTo   User? @relation(fields: [assignedToId], references: [id])
+  assignedToId Int?
+
   financingRequest FinancingRequest?
+}
+
+model LeadActivity {
+  id        String   @id @default(cuid())
+  lead      Lead     @relation(fields: [leadId], references: [id], onDelete: Cascade)
+  leadId    String
+  
+  type      String   // CALL, EMAIL, MEETING, TASK, NOTE
+  summary   String
+  dueDate   DateTime?
+  isDone    Boolean  @default(false)
+  feedback  String?  @db.Text
+  
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([leadId])
+}
+
+model LeadTag {
+  id    Int    @id @default(autoincrement())
+  name  String
+  color String // Hex Code
+
+  leads Lead[]
 }
 
 model FinancingRequest {
