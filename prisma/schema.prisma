@@ -388,18 +388,23 @@ model FinancingRequest {
   genesisStatus String? // Status in external ERP
 
   // System Status
-  status        FinancingStatus @default(PENDING)
+  status        FinancingStatus @default(NEW)
+  subStatus     String? // Detailed status (e.g. "No firmada", "Fraude")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 }
 
 enum FinancingStatus {
-  PENDING
-  PROCESSING
+  NEW
+  STUDY
   APPROVED
-  REJECTED
-  FUNDED
+  PENDING_SIGNATURE
+  PENDING_PAYMENT
+  FORMALIZED
+  RETHINK
+  DENIED
+  FAILED
 }
 
 model GalleryImage {
