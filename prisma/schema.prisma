@@ -57,6 +57,8 @@ model Dealership {
 
   // Contact & Location
   email   String?
+  emailComercial     String? // Notification routing: Leads
+  emailFinanciacion  String? // Notification routing: Financing
   phone   String?
   address String?
   city    String?
@@ -320,6 +322,10 @@ model Lead {
 
   // CRM External IDs
   walcuLeadId String?
+  walcuStatus String?
+  walcuError  String?
+  medium      String?
+  campaign    String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -390,6 +396,13 @@ model FinancingRequest {
   // System Status
   status        FinancingStatus @default(NEW)
   subStatus     String? // Detailed status (e.g. "No firmada", "Fraude")
+
+  // Extended Data Fields (JSON)
+  vehicleSnapshot   Json? // Snapshot of car details (Price, VIN, etc.)
+  holderData        Json? // Full customer datasheet (Employment, Address, etc.)
+  coHolderData      Json? // Co-holder datasheet
+  financialDetails  Json? // Entry, Fee, Term, Total amount
+  bankStatuses      Json? // Status per bank: { "BBVA": "denied", "Santander": "approved" }
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

@@ -84,6 +84,8 @@ export async function updateLeadPriority(leadId: string, priority: number) {
 
 // --- Activity Actions ---
 
+// --- Activity Actions ---
+
 export async function createLeadActivity(data: {
     leadId: string,
     type: string,
@@ -104,5 +106,101 @@ export async function createLeadActivity(data: {
         return { success: true }
     } catch (error) {
         return { success: false, error: "Failed to create activity" }
+    }
+}
+
+// --- Detail Actions ---
+
+
+export async function getLeadDetails(leadId: string) {
+    try {
+        const lead = await prisma.lead.findUnique({
+            where: { id: leadId },
+            include: {
+                car: {
+                    include: {
+                        make: true,
+                        model: true,
+                        images: true
+                    }
+                },
+                assignedTo: true,
+                activities: {
+                    orderBy: { dueDate: 'desc' }
+                },
+                tags: true,
+                financingRequest: true
+            }
+        })
+        return { success: true, data: lead }
+    } catch (error) {
+        console.error("Error fetching lead details:", error)
+        return { success: false, error: "Failed to fetch lead details" }
+    }
+}
+
+export async function updateLeadDetails(leadId: string, data: any) {
+    try {
+        // Separate Financing Data specific key
+        const { financing, ...leadData } = data
+
+        // Filter valid Lead fields to avoid unknown arg error
+        const leadValidKeys = ['firstName', 'lastName', 'email', 'phone', 'status', 'source', 'medium', 'campaign', 'message', 'priority']
+        const leadUpdateData: any = {}
+        for (const key of Object.keys(leadData)) {
+            if (leadValidKeys.includes(key)) {
+                leadUpdateData[key] = leadData[key]
+            }
+        }
+
+        // 1. Update Lead Basic Info
+        const lead = await prisma.lead.update({
+            where: { id: leadId },
+            data: leadUpdateData
+        })
+
+        // 2. Upsert Financing Data if provided
+        if (financing && lead.dealershipId && lead.carId) {
+            // Extract scalar values from JSON for relational columns
+            const financial = financing.financialData || {}
+            const amount = Number(financial?.amountToFinance) || 0
+            const term = Number(financial?.term) || 0
+            const downPayment = Number(financial?.entry) || 0
+            const monthlyFee = Number(financial?.monthlyFee) || undefined
+
+            await prisma.financingRequest.upsert({
+                where: { leadId: leadId },
+                create: {
+                    leadId: leadId,
+                    dealershipId: lead.dealershipId,
+                    carId: lead.carId,
+                    amount,
+                    term,
+                    downPayment,
+                    monthlyFee,
+                    holderData: financing.holderData ?? {},
+                    coHolderData: financing.coHolderData ?? {},
+                    bankStatuses: financing.bankStatuses ?? {},
+                    financialDetails: financing.financialData ?? {},
+                    status: 'NEW'
+                },
+                update: {
+                    amount,
+                    term,
+                    downPayment,
+                    monthlyFee,
+                    holderData: financing.holderData ?? undefined,
+                    coHolderData: financing.coHolderData ?? undefined,
+                    bankStatuses: financing.bankStatuses ?? undefined,
+                    financialDetails: financing.financialData ?? undefined
+                }
+            })
+        }
+
+        revalidatePath('/admin/leads')
+        return { success: true }
+    } catch (error) {
+        console.error("Error updating lead details:", error)
+        return { success: false, error: "Failed to update lead details" }
     }
 }

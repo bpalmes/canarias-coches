@@ -4,17 +4,26 @@ import { KanbanLead } from "../types"
 import { Card, CardContent, CardFooter, CardHeader } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { CalendarClock, Star, Phone, Mail, User } from "lucide-react"
+import { CalendarClock, Star, Phone, Mail, User, Send, Loader2, Maximize2 } from "lucide-react"
 import { format } from "date-fns"
 import { es } from "date-fns/locale"
 import { useSortable } from "@dnd-kit/sortable"
 import { CSS } from "@dnd-kit/utilities"
+import { useState } from "react"
+import { useToast } from "@/components/ui/use-toast"
+import { Button } from "@/components/ui/button"
+import { sendLeadToWalcuAction } from "@/actions/public-lead-actions"
 
 interface CRMLeadCardProps {
     lead: KanbanLead
+    isSuperAdmin?: boolean
+    onExpand?: () => void
 }
 
-export function CRMLeadCard({ lead }: CRMLeadCardProps) {
+export function CRMLeadCard({ lead, isSuperAdmin, onExpand }: CRMLeadCardProps) {
+    const { toast } = useToast()
+    const [sendingWalcu, setSendingWalcu] = useState(false)
+
     const {
         attributes,
         listeners,
@@ -52,6 +61,44 @@ export function CRMLeadCard({ lead }: CRMLeadCardProps) {
     } else {
         // No activity scheduled - warning in Odoo philosophy
         activityColor = "text-gray-300"
+    }
+
+    const handleSendToWalcu = async (e: React.MouseEvent) => {
+        e.stopPropagation()
+        e.preventDefault() // Safety
+
+        if (sendingWalcu) return
+        setSendingWalcu(true)
+
+        try {
+            const res = await sendLeadToWalcuAction(lead.id)
+            if (res.success) {
+                toast({
+                    title: "Enviado a Walcu",
+                    description: "El lead se ha sincronizado correctamente.",
+                    className: "bg-green-600 text-white border-green-700"
+                })
+            } else {
+                toast({
+                    title: "Error de sincronización",
+                    description: res.error || "No se pudo conectar con Walcu",
+                    variant: "destructive"
+                })
+            }
+        } catch (error) {
+            toast({
+                title: "Error inesperado",
+                variant: "destructive"
+            })
+        } finally {
+            setSendingWalcu(false)
+        }
+    }
+
+    // Wrap onExpand to stop propagation
+    const handleExpand = (e: React.MouseEvent) => {
+        e.stopPropagation()
+        onExpand?.()
     }
 
     return (
@@ -101,7 +148,7 @@ export function CRMLeadCard({ lead }: CRMLeadCardProps) {
                     )}
                 </CardContent>
 
-                <CardFooter className="p-3 pt-0 flex justify-between items-center text-xs text-gray-500">
+                <CardFooter className="p-3 pt-0 flex justify-between items-center text-xs text-gray-500 relative">
                     <div className="flex items-center gap-2">
                         <CalendarClock className={`w-3.5 h-3.5 ${activityColor}`} />
                         {nextActivity ? (
@@ -113,15 +160,47 @@ export function CRMLeadCard({ lead }: CRMLeadCardProps) {
                         )}
                     </div>
 
-                    {lead.assignedTo ? (
-                        <Avatar className="w-5 h-5">
-                            <AvatarFallback className="text-[10px] bg-indigo-100 text-indigo-700">
-                                {lead.assignedTo.name?.[0] || lead.assignedTo.email[0].toUpperCase()}
-                            </AvatarFallback>
-                        </Avatar>
-                    ) : (
-                        <User className="w-4 h-4 text-gray-300" />
-                    )}
+                    <div className="flex items-center gap-2">
+                        {/* Expand Button */}
+                        {onExpand && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 hover:bg-slate-100 rounded-full"
+                                onClick={handleExpand}
+                                title="Ver detalles"
+                            >
+                                <Maximize2 className="w-3.5 h-3.5 text-slate-400 hover:text-blue-600" />
+                            </Button>
+                        )}
+
+                        {isSuperAdmin && (
+                            <Button
+                                variant="ghost"
+                                size="icon"
+                                className="h-6 w-6 hover:bg-slate-100 rounded-full"
+                                onClick={handleSendToWalcu}
+                                disabled={sendingWalcu || lead.walcuStatus === 'sent'}
+                                title={lead.walcuStatus === 'sent' ? "Sincronizado con Walcu" : "Enviar a Walcu"}
+                            >
+                                {sendingWalcu ? (
+                                    <Loader2 className="w-3.5 h-3.5 animate-spin text-blue-500" />
+                                ) : (
+                                    <Send className={`w-3.5 h-3.5 ${lead.walcuStatus === 'sent' ? 'text-green-500' : 'text-slate-400 hover:text-blue-600'}`} />
+                                )}
+                            </Button>
+                        )}
+
+                        {lead.assignedTo ? (
+                            <Avatar className="w-5 h-5">
+                                <AvatarFallback className="text-[10px] bg-indigo-100 text-indigo-700">
+                                    {lead.assignedTo.name?.[0] || lead.assignedTo.email[0].toUpperCase()}
+                                </AvatarFallback>
+                            </Avatar>
+                        ) : (
+                            <User className="w-4 h-4 text-gray-300" />
+                        )}
+                    </div>
                 </CardFooter>
             </Card>
         </div>

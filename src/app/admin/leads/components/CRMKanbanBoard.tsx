@@ -20,9 +20,11 @@ import { KanbanColumn } from './CRMKanbanColumn'
 import { updateLeadStatus } from '@/actions/crm-lead-actions'
 import { LeadStatus } from '@prisma/client'
 import { useToast } from "@/components/ui/use-toast"
+import { CRMLeadDetailModal } from './CRMLeadDetailModal'
 
 interface CRMKanbanBoardProps {
     initialLeads: KanbanLead[]
+    isSuperAdmin: boolean
 }
 
 const COLUMNS: LeadStatus[] = ['NEW', 'CONTACTED', 'QUALIFIED', 'PROPOSAL_SENT', 'NEGOTIATION', 'WON', 'LOST']
@@ -37,10 +39,11 @@ const COLUMN_LABELS: Record<LeadStatus, string> = {
     LOST: 'Perdido'
 }
 
-export function CRMKanbanBoard({ initialLeads }: CRMKanbanBoardProps) {
+export function CRMKanbanBoard({ initialLeads, isSuperAdmin }: CRMKanbanBoardProps) {
     const { toast } = useToast()
     const [leads, setLeads] = useState<KanbanLead[]>(initialLeads)
     const [activeId, setActiveId] = useState<string | null>(null)
+    const [detailId, setDetailId] = useState<string | null>(null)
 
     // Sensors for drag detection
     const sensors = useSensors(
@@ -155,13 +158,21 @@ export function CRMKanbanBoard({ initialLeads }: CRMKanbanBoardProps) {
                         id={status}
                         title={COLUMN_LABELS[status]}
                         leads={leads.filter(l => l.status === status)}
+                        isSuperAdmin={isSuperAdmin}
+                        onLeadClick={(id) => setDetailId(id)}
                     />
                 ))}
             </div>
 
             <DragOverlay>
-                {activeLead ? <CRMLeadCard lead={activeLead} /> : null}
+                {activeLead ? <CRMLeadCard lead={activeLead} isSuperAdmin={isSuperAdmin} /> : null}
             </DragOverlay>
+
+            <CRMLeadDetailModal
+                isOpen={!!detailId}
+                leadId={detailId}
+                onClose={() => setDetailId(null)}
+            />
         </DndContext>
     )
 }

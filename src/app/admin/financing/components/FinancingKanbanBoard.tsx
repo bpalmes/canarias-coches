@@ -18,6 +18,7 @@ import { KanbanFinancingReq, FINANCING_COLUMNS, FINANCING_LABELS, SUB_STATUS_OPT
 import { FinancingCard } from './FinancingCard'
 import { FinancingKanbanColumn } from './FinancingKanbanColumn'
 import { SubStatusModal } from './SubStatusModal'
+import { FinancingDetailModal } from './FinancingDetailModal'
 import { updateFinancingStatus } from '@/actions/crm-financing-actions'
 import { FinancingStatus } from '@prisma/client'
 import { useToast } from "@/components/ui/use-toast"
@@ -30,6 +31,9 @@ export function FinancingKanbanBoard({ initialReqs }: FinancingKanbanBoardProps)
     const { toast } = useToast()
     const [reqs, setReqs] = useState<KanbanFinancingReq[]>(initialReqs)
     const [activeId, setActiveId] = useState<string | null>(null)
+
+    // View Details State
+    const [detailId, setDetailId] = useState<string | null>(null)
 
     // Interception State
     const [pendingMove, setPendingMove] = useState<{ reqId: string, newStatus: FinancingStatus } | null>(null)
@@ -53,7 +57,6 @@ export function FinancingKanbanBoard({ initialReqs }: FinancingKanbanBoardProps)
         const activeId = active.id as string
         const overId = over.id as string
 
-        // Determine New Status
         let newStatus: FinancingStatus | undefined
         if (FINANCING_COLUMNS.includes(overId as FinancingStatus)) {
             newStatus = overId as FinancingStatus
@@ -65,14 +68,11 @@ export function FinancingKanbanBoard({ initialReqs }: FinancingKanbanBoardProps)
         const activeItem = reqs.find(r => r.id === activeId)
         if (!activeItem || !newStatus || newStatus === activeItem.status) return
 
-        // CHECK SUB STATUS REQ
         const options = SUB_STATUS_OPTIONS[newStatus]
         if (options && options.length > 0) {
-            // Intercept!
             setPendingMove({ reqId: activeId, newStatus })
             setIsModalOpen(true)
         } else {
-            // Direct Move
             performMove(activeId, newStatus, null)
         }
     }
@@ -81,7 +81,6 @@ export function FinancingKanbanBoard({ initialReqs }: FinancingKanbanBoardProps)
         const originalReq = reqs.find(r => r.id === reqId)
         if (!originalReq) return
 
-        // Optimistic Update
         setReqs(prev => prev.map(r =>
             r.id === reqId ? { ...r, status, subStatus: subStatus || null } : r
         ))
@@ -90,7 +89,7 @@ export function FinancingKanbanBoard({ initialReqs }: FinancingKanbanBoardProps)
             const res = await updateFinancingStatus(reqId, status, subStatus)
             if (!res.success) throw new Error(res.error)
         } catch (error) {
-            setReqs(prev => prev.map(r => r.id === reqId ? originalReq : r)) // Revert
+            setReqs(prev => prev.map(r => r.id === reqId ? originalReq : r))
             toast({ title: "Error", description: "No se pudo actualizar el estado", variant: "destructive" })
         }
     }
@@ -119,6 +118,7 @@ export function FinancingKanbanBoard({ initialReqs }: FinancingKanbanBoardProps)
                         id={status}
                         title={FINANCING_LABELS[status]}
                         reqs={reqs.filter(r => r.status === status)}
+                        onReqClick={(id) => setDetailId(id)}
                     />
                 ))}
             </div>
@@ -132,6 +132,12 @@ export function FinancingKanbanBoard({ initialReqs }: FinancingKanbanBoardProps)
                 onClose={() => { setIsModalOpen(false); setPendingMove(null) }}
                 onConfirm={handleModalConfirm}
                 targetStatus={pendingMove?.newStatus || null}
+            />
+
+            <FinancingDetailModal
+                isOpen={!!detailId}
+                requestId={detailId}
+                onClose={() => setDetailId(null)}
             />
         </DndContext>
     )

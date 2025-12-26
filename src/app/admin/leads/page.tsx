@@ -45,7 +45,10 @@ export default async function LeadsDashboard() {
       </div>
 
       <div className="flex-1 bg-slate-50 overflow-hidden">
-        <CRMKanbanBoard initialLeads={leads} />
+        <CRMKanbanBoard
+          initialLeads={leads}
+          isSuperAdmin={session.user.role === 'SUPER_ADMIN'}
+        />
       </div>
     </div>
   )

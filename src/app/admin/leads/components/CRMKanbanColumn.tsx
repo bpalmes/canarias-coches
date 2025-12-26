@@ -11,9 +11,11 @@ interface KanbanColumnProps {
     id: LeadStatus
     title: string
     leads: KanbanLead[]
+    isSuperAdmin: boolean
+    onLeadClick?: (id: string) => void
 }
 
-export function KanbanColumn({ id, title, leads }: KanbanColumnProps) {
+export function KanbanColumn({ id, title, leads, isSuperAdmin, onLeadClick }: KanbanColumnProps) {
     const { setNodeRef } = useDroppable({
         id: id
     })
@@ -40,7 +42,12 @@ export function KanbanColumn({ id, title, leads }: KanbanColumnProps) {
             <div className="flex-1 overflow-y-auto p-2 scrollbar-thin">
                 <SortableContext items={leads.map(l => l.id)} strategy={verticalListSortingStrategy}>
                     {leads.map(lead => (
-                        <CRMLeadCard key={lead.id} lead={lead} />
+                        <CRMLeadCard
+                            key={lead.id}
+                            lead={lead}
+                            isSuperAdmin={isSuperAdmin}
+                            onExpand={() => onLeadClick?.(lead.id)}
+                        />
                     ))}
                     {leads.length === 0 && (
                         <div className="h-20 border-2 border-dashed border-slate-200 rounded flex items-center justify-center text-xs text-slate-400">
